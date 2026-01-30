@@ -38,6 +38,7 @@ import {
 } from './repositories/responseRepository';
 import {
   insertTimeSlots,
+  hasTimeSlots,
   listTimeSlots,
   listTimeSlotsForPolls,
 } from './repositories/slotRepository';
@@ -343,13 +344,17 @@ export function useCreatePoll() {
 
       await createPoll(pollRecord);
 
-      await insertAvailabilityBlocks(pollId, pollData.dayAvailability);
+      // Slots are immutable once created; never overwrite existing slots/availability.
+      const slotsExist = await hasTimeSlots(pollId);
+      if (!slotsExist) {
+        await insertAvailabilityBlocks(pollId, pollData.dayAvailability);
 
-      const slots: TimeSlot[] = pollData.timeSlots.map((slot) => ({
-        ...slot,
-        pollId,
-      }));
-      await insertTimeSlots(pollId, slots);
+        const slots: TimeSlot[] = pollData.timeSlots.map((slot) => ({
+          ...slot,
+          pollId,
+        }));
+        await insertTimeSlots(pollId, slots);
+      }
 
       const displayName = await getStoredDisplayName();
       await upsertParticipant({

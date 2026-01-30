@@ -1,5 +1,6 @@
 import { supabaseRequest } from '../supabaseClient';
 import type { DayAvailabilityBlock } from '../types';
+import { hasTimeSlots } from './slotRepository';
 
 interface AvailabilityRow {
   id: string;
@@ -44,6 +45,9 @@ export async function insertAvailabilityBlocks(
   blocks: DayAvailabilityBlock[]
 ): Promise<void> {
   if (!blocks.length) return;
+  if (await hasTimeSlots(pollId)) {
+    return;
+  }
 
   await supabaseRequest('availability_blocks', {
     method: 'POST',

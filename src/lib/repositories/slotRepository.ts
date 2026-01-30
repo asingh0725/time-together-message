@@ -31,6 +31,18 @@ export async function listTimeSlots(pollId: string): Promise<TimeSlot[]> {
   return rows.map(toTimeSlot);
 }
 
+export async function hasTimeSlots(pollId: string): Promise<boolean> {
+  const rows = await supabaseRequest<Pick<TimeSlotRow, 'id'>[]>('time_slots', {
+    params: {
+      select: 'id',
+      poll_id: `eq.${pollId}`,
+      limit: '1',
+    },
+  });
+
+  return rows.length > 0;
+}
+
 export async function listTimeSlotsForPolls(pollIds: string[]): Promise<TimeSlot[]> {
   if (!pollIds.length) return [];
 

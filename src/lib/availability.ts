@@ -2,6 +2,8 @@ import { v4 as uuidv4 } from 'uuid';
 
 import type { BaseTimeSlot, DayAvailabilityBlock, PreviewTimeSlot } from './types';
 
+// Availability is defined per-day with independent blocks (no implicit ranges).
+
 export function getDateKey(date: Date): string {
   return date.toISOString().split('T')[0];
 }

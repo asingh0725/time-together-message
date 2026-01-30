@@ -230,7 +230,7 @@ export default function PollDetailScreen() {
       <View className="flex-1 bg-zinc-950 items-center justify-center px-6">
         <Text className="text-white text-lg font-semibold mb-2">Poll not found</Text>
         <Text className="text-zinc-400 text-sm text-center mb-6">
-          This poll link is invalid or no longer available.
+          This poll link is invalid, no longer available, or failed to load.
         </Text>
         <Pressable
           onPress={() => router.replace('/')}
@@ -326,29 +326,6 @@ export default function PollDetailScreen() {
     addResponseMutation.mutate({ pollId: poll.id, slotId, availability });
   };
 
-  if (pollLoading) {
-    return (
-      <View className="flex-1 bg-zinc-950 items-center justify-center">
-        <ActivityIndicator size="large" color="#3b82f6" />
-        <Text className="text-zinc-400 mt-4">Loading poll...</Text>
-      </View>
-    );
-  }
-
-  if (!poll) {
-    return (
-      <View className="flex-1 bg-zinc-950 items-center justify-center">
-        <Text className="text-zinc-400">Poll not found</Text>
-        <Pressable
-          onPress={() => router.back()}
-          className="mt-4 px-4 py-2 bg-zinc-800 rounded-lg"
-        >
-          <Text className="text-white">Go Back</Text>
-        </Pressable>
-      </View>
-    );
-  }
-
   return (
     <View className="flex-1 bg-zinc-950">
       <LinearGradient
@@ -402,6 +379,9 @@ export default function PollDetailScreen() {
           >
             <Text className="text-white text-2xl font-bold mb-2">
               {poll.title}
+            </Text>
+            <Text className="text-zinc-500 text-xs">
+              Availability locked after poll creation
             </Text>
 
             <View className="flex-row items-center gap-4 mt-2">
