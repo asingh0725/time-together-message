@@ -202,7 +202,12 @@ export default function PollDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
 
-  const { data: poll, isLoading: pollLoading } = usePoll(id ?? '');
+  const pollId = typeof id === 'string' ? id : '';
+  const {
+    data: poll,
+    isLoading: pollLoading,
+    isError: pollError,
+  } = usePoll(pollId);
   const { data: user } = useCurrentUser();
   const addResponseMutation = useAddResponse();
   const finalizePollMutation = useFinalizePoll();
@@ -211,6 +216,31 @@ export default function PollDetailScreen() {
   const currentUserId = user?.id ?? '';
   const isCreator = poll?.creatorId === currentUserId;
   const isFinalized = poll?.status === 'finalized';
+
+  if (pollLoading) {
+    return (
+      <View className="flex-1 bg-zinc-950 items-center justify-center">
+        <ActivityIndicator size="large" color="#3b82f6" />
+      </View>
+    );
+  }
+
+  if (!pollId || pollError || !poll) {
+    return (
+      <View className="flex-1 bg-zinc-950 items-center justify-center px-6">
+        <Text className="text-white text-lg font-semibold mb-2">Poll not found</Text>
+        <Text className="text-zinc-400 text-sm text-center mb-6">
+          This poll link is invalid or no longer available.
+        </Text>
+        <Pressable
+          onPress={() => router.replace('/')}
+          className="px-5 py-3 rounded-xl bg-blue-600"
+        >
+          <Text className="text-white font-semibold">Back to Home</Text>
+        </Pressable>
+      </View>
+    );
+  }
 
   const rankedSlots = useMemo(() => {
     if (!poll) return [];
@@ -221,7 +251,7 @@ export default function PollDetailScreen() {
     (slotId: string): Availability | null => {
       if (!poll) return null;
       const response = poll.responses.find(
-        (r: Response) => r.participantId === currentUserId && r.slotId === slotId
+        (r: Response) => r.sessionId === currentUserId && r.slotId === slotId
       );
       return response?.availability ?? null;
     },
@@ -230,7 +260,7 @@ export default function PollDetailScreen() {
 
   const respondentCount = useMemo(() => {
     if (!poll) return 0;
-    const uniqueParticipants = new Set(poll.responses.map((r: Response) => r.participantId));
+    const uniqueParticipants = new Set(poll.responses.map((r: Response) => r.sessionId));
     return uniqueParticipants.size;
   }, [poll]);
 

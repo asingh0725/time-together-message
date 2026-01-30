@@ -19,7 +19,7 @@ import {
   type DayAvailabilityBlock,
   getDateKey,
   formatTimeShort,
-} from '@/lib/poll-store';
+} from '@/lib/availability';
 import { v4 as uuidv4 } from 'uuid';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');

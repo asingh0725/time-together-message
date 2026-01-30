@@ -1,25 +1,66 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { v4 as uuidv4 } from 'uuid';
 
 import {
-  usePollStore,
-  type Availability,
-  type DayAvailabilityBlock,
-  type TimeSlot,
-  type Poll,
-  type Response,
-} from './poll-store';
+  countDaysWithAvailability,
+  formatDateHeader,
+  formatDateShort,
+  formatSlotDate,
+  formatSlotTime,
+  formatTime,
+  formatTimeShort,
+  generateSlotsFromAvailability,
+  getDateKey,
+  groupSlotsByDate,
+  parseDateKey,
+} from './availability';
+import { getOrCreateSessionId, getStoredDisplayName, setStoredDisplayName } from './identity';
+import {
+  insertAvailabilityBlocks,
+  listAvailabilityBlocks,
+} from './repositories/availabilityRepository';
+import {
+  createPoll,
+  deletePoll,
+  finalizePoll,
+  getPoll,
+  listPolls,
+} from './repositories/pollRepository';
+import {
+  getParticipant,
+  updateDisplayNameForSession,
+  upsertParticipant,
+} from './repositories/participantRepository';
+import {
+  listResponses,
+  listResponsesForPolls,
+  upsertResponse,
+} from './repositories/responseRepository';
+import {
+  insertTimeSlots,
+  listTimeSlots,
+  listTimeSlotsForPolls,
+} from './repositories/slotRepository';
+import type {
+  Availability,
+  DayAvailabilityBlock,
+  Poll,
+  PollRecord,
+  PreviewTimeSlot,
+  Response,
+  TimeSlot,
+} from './types';
 
-// Re-export types from poll-store
-export type { Availability, DayAvailabilityBlock, TimeSlot, Response, Poll };
+export type {
+  Availability,
+  DayAvailabilityBlock,
+  Poll,
+  PollRecord,
+  PreviewTimeSlot,
+  Response,
+  TimeSlot,
+};
 
-// Preview slot type (before poll is created, no pollId yet)
-export interface PreviewTimeSlot {
-  id: string;
-  startISO: string;
-  endISO: string;
-}
-
-// Query keys
 export const queryKeys = {
   database: ['database'] as const,
   user: ['user'] as const,
@@ -29,41 +70,76 @@ export const queryKeys = {
   poll: (id: string) => ['polls', id] as const,
 };
 
-// Use Zustand store for all platforms (SQLite has web issues)
-// This provides a consistent API while using the working Zustand store
+function resolveDateRange(
+  poll: PollRecord,
+  slots: TimeSlot[],
+  availability: DayAvailabilityBlock[]
+): { start: string; end: string } {
+  if (poll.dateRangeStart && poll.dateRangeEnd) {
+    return { start: poll.dateRangeStart, end: poll.dateRangeEnd };
+  }
+
+  const daysFromSlots = slots.map((slot) => slot.day);
+  if (daysFromSlots.length) {
+    const sorted = [...new Set(daysFromSlots)].sort();
+    return { start: sorted[0], end: sorted[sorted.length - 1] };
+  }
+
+  const daysFromAvailability = availability.map((block) => block.date);
+  if (daysFromAvailability.length) {
+    const sorted = [...new Set(daysFromAvailability)].sort();
+    return { start: sorted[0], end: sorted[sorted.length - 1] };
+  }
+
+  const fallback = poll.createdAt.split('T')[0];
+  return { start: fallback, end: fallback };
+}
+
+function buildPollView(
+  poll: PollRecord,
+  slots: TimeSlot[],
+  responses: Response[],
+  availability: DayAvailabilityBlock[]
+): Poll {
+  const { start, end } = resolveDateRange(poll, slots, availability);
+
+  return {
+    ...poll,
+    creatorId: poll.creatorId ?? '',
+    dateRangeStart: start,
+    dateRangeEnd: end,
+    timeSlots: slots,
+    responses,
+  };
+}
 
 export function useInitDatabase() {
   return useQuery({
     queryKey: queryKeys.database,
-    queryFn: async () => {
-      // Database initialization not needed for Zustand
-      return true;
-    },
+    queryFn: async () => true,
     staleTime: Infinity,
   });
 }
 
 export function useCurrentUser() {
-  const currentUserId = usePollStore((s) => s.currentUserId);
-  const currentUserName = usePollStore((s) => s.currentUserName);
-
   return useQuery({
-    queryKey: [...queryKeys.user, currentUserId, currentUserName],
-    queryFn: async () => ({
-      id: currentUserId,
-      name: currentUserName,
-    }),
-    staleTime: 0,
+    queryKey: queryKeys.user,
+    queryFn: async () => {
+      const sessionId = await getOrCreateSessionId();
+      const name = await getStoredDisplayName();
+      return { id: sessionId, name };
+    },
   });
 }
 
 export function useSetUserName() {
-  const setUserName = usePollStore((s) => s.setUserName);
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (name: string) => {
-      setUserName(name);
+      await setStoredDisplayName(name);
+      const sessionId = await getOrCreateSessionId();
+      await updateDisplayNameForSession(sessionId, name);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.user });
@@ -72,48 +148,172 @@ export function useSetUserName() {
 }
 
 export function usePolls() {
-  const polls = usePollStore((s) => s.polls);
-
   return useQuery({
-    queryKey: [...queryKeys.polls, polls],
-    queryFn: async () => polls,
-    staleTime: 0,
+    queryKey: queryKeys.polls,
+    queryFn: async () => {
+      const polls = await listPolls();
+      const pollIds = polls.map((poll) => poll.id);
+
+      const [slots, responses, availability] = await Promise.all([
+        listTimeSlotsForPolls(pollIds),
+        listResponsesForPolls(pollIds),
+        Promise.all(pollIds.map((pollId) => listAvailabilityBlocks(pollId))),
+      ]);
+
+      const availabilityByPoll = new Map<string, DayAvailabilityBlock[]>();
+      pollIds.forEach((pollId, index) => {
+        availabilityByPoll.set(pollId, availability[index] ?? []);
+      });
+
+      const slotsByPoll = new Map<string, TimeSlot[]>();
+      for (const slot of slots) {
+        const existing = slotsByPoll.get(slot.pollId) ?? [];
+        existing.push(slot);
+        slotsByPoll.set(slot.pollId, existing);
+      }
+
+      const responsesByPoll = new Map<string, Response[]>();
+      for (const response of responses) {
+        const existing = responsesByPoll.get(response.pollId) ?? [];
+        existing.push(response);
+        responsesByPoll.set(response.pollId, existing);
+      }
+
+      return polls.map((poll) =>
+        buildPollView(
+          poll,
+          slotsByPoll.get(poll.id) ?? [],
+          responsesByPoll.get(poll.id) ?? [],
+          availabilityByPoll.get(poll.id) ?? []
+        )
+      );
+    },
   });
 }
 
 export function useMyPolls() {
-  const getMyPolls = usePollStore((s) => s.getMyPolls);
+  const { data: user } = useCurrentUser();
 
   return useQuery({
-    queryKey: queryKeys.myPolls,
-    queryFn: async () => getMyPolls(),
-    staleTime: 0,
+    queryKey: [...queryKeys.myPolls, user?.id ?? ''],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const polls = await listPolls();
+      const myPolls = polls.filter((poll) => poll.creatorId === user.id);
+      const pollIds = myPolls.map((poll) => poll.id);
+
+      const [slots, responses, availability] = await Promise.all([
+        listTimeSlotsForPolls(pollIds),
+        listResponsesForPolls(pollIds),
+        Promise.all(pollIds.map((pollId) => listAvailabilityBlocks(pollId))),
+      ]);
+
+      const availabilityByPoll = new Map<string, DayAvailabilityBlock[]>();
+      pollIds.forEach((pollId, index) => {
+        availabilityByPoll.set(pollId, availability[index] ?? []);
+      });
+
+      const slotsByPoll = new Map<string, TimeSlot[]>();
+      for (const slot of slots) {
+        const existing = slotsByPoll.get(slot.pollId) ?? [];
+        existing.push(slot);
+        slotsByPoll.set(slot.pollId, existing);
+      }
+
+      const responsesByPoll = new Map<string, Response[]>();
+      for (const response of responses) {
+        const existing = responsesByPoll.get(response.pollId) ?? [];
+        existing.push(response);
+        responsesByPoll.set(response.pollId, existing);
+      }
+
+      return myPolls.map((poll) =>
+        buildPollView(
+          poll,
+          slotsByPoll.get(poll.id) ?? [],
+          responsesByPoll.get(poll.id) ?? [],
+          availabilityByPoll.get(poll.id) ?? []
+        )
+      );
+    },
+    enabled: !!user?.id,
   });
 }
 
 export function useRespondedPolls() {
-  const getRespondedPolls = usePollStore((s) => s.getRespondedPolls);
+  const { data: user } = useCurrentUser();
 
   return useQuery({
-    queryKey: queryKeys.respondedPolls,
-    queryFn: async () => getRespondedPolls(),
-    staleTime: 0,
+    queryKey: [...queryKeys.respondedPolls, user?.id ?? ''],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const polls = await listPolls();
+      const pollIds = polls.map((poll) => poll.id);
+
+      const [responses, slots, availability] = await Promise.all([
+        listResponsesForPolls(pollIds),
+        listTimeSlotsForPolls(pollIds),
+        Promise.all(pollIds.map((pollId) => listAvailabilityBlocks(pollId))),
+      ]);
+
+      const availabilityByPoll = new Map<string, DayAvailabilityBlock[]>();
+      pollIds.forEach((pollId, index) => {
+        availabilityByPoll.set(pollId, availability[index] ?? []);
+      });
+
+      const responsesByPoll = new Map<string, Response[]>();
+      for (const response of responses) {
+        const existing = responsesByPoll.get(response.pollId) ?? [];
+        existing.push(response);
+        responsesByPoll.set(response.pollId, existing);
+      }
+
+      const slotsByPoll = new Map<string, TimeSlot[]>();
+      for (const slot of slots) {
+        const existing = slotsByPoll.get(slot.pollId) ?? [];
+        existing.push(slot);
+        slotsByPoll.set(slot.pollId, existing);
+      }
+
+      const responded = polls.filter((poll) =>
+        (responsesByPoll.get(poll.id) ?? []).some((response) => response.sessionId === user.id)
+      );
+
+      return responded.map((poll) =>
+        buildPollView(
+          poll,
+          slotsByPoll.get(poll.id) ?? [],
+          responsesByPoll.get(poll.id) ?? [],
+          availabilityByPoll.get(poll.id) ?? []
+        )
+      );
+    },
+    enabled: !!user?.id,
   });
 }
 
 export function usePoll(pollId: string) {
-  const getPoll = usePollStore((s) => s.getPoll);
-
   return useQuery({
     queryKey: queryKeys.poll(pollId),
-    queryFn: async () => getPoll(pollId) ?? null,
+    queryFn: async () => {
+      if (!pollId) return null;
+
+      const poll = await getPoll(pollId);
+      if (!poll) return null;
+
+      const [slots, responses, availability] = await Promise.all([
+        listTimeSlots(pollId),
+        listResponses(pollId),
+        listAvailabilityBlocks(pollId),
+      ]);
+
+      return buildPollView(poll, slots, responses, availability);
+    },
     enabled: !!pollId,
-    staleTime: 0,
   });
 }
 
 export function useCreatePoll() {
-  const createPoll = usePollStore((s) => s.createPoll);
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -125,14 +325,39 @@ export function useCreatePoll() {
       dayAvailability: DayAvailabilityBlock[];
       timeSlots: PreviewTimeSlot[];
     }): Promise<string> => {
-      const pollId = createPoll({
+      const sessionId = await getOrCreateSessionId();
+      const pollId = uuidv4();
+      const createdAt = new Date().toISOString();
+
+      const pollRecord: PollRecord = {
+        id: pollId,
         title: pollData.title,
         durationMinutes: pollData.durationMinutes,
+        status: 'open',
+        createdAt,
+        finalizedSlotId: null,
+        creatorId: sessionId,
         dateRangeStart: pollData.dateRangeStart,
         dateRangeEnd: pollData.dateRangeEnd,
-        dayAvailability: pollData.dayAvailability,
-        timeSlots: pollData.timeSlots,
+      };
+
+      await createPoll(pollRecord);
+
+      await insertAvailabilityBlocks(pollId, pollData.dayAvailability);
+
+      const slots: TimeSlot[] = pollData.timeSlots.map((slot) => ({
+        ...slot,
+        pollId,
+      }));
+      await insertTimeSlots(pollId, slots);
+
+      const displayName = await getStoredDisplayName();
+      await upsertParticipant({
+        pollId,
+        sessionId,
+        displayName: displayName || undefined,
       });
+
       return pollId;
     },
     onSuccess: () => {
@@ -143,7 +368,6 @@ export function useCreatePoll() {
 }
 
 export function useAddResponse() {
-  const addResponse = usePollStore((s) => s.addResponse);
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -158,7 +382,17 @@ export function useAddResponse() {
       availability: Availability;
       participantName?: string;
     }) => {
-      addResponse(pollId, slotId, availability, participantName);
+      const sessionId = await getOrCreateSessionId();
+      const storedName = await getStoredDisplayName();
+      const displayName = participantName || storedName || 'Anonymous';
+
+      await upsertParticipant({
+        pollId,
+        sessionId,
+        displayName,
+      });
+
+      await upsertResponse(pollId, slotId, sessionId, availability);
     },
     onSuccess: (_, { pollId }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.poll(pollId) });
@@ -168,12 +402,11 @@ export function useAddResponse() {
 }
 
 export function useFinalizePoll() {
-  const finalizePoll = usePollStore((s) => s.finalizePoll);
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async ({ pollId, slotId }: { pollId: string; slotId: string }) => {
-      finalizePoll(pollId, slotId);
+      await finalizePoll(pollId, slotId);
     },
     onSuccess: (_, { pollId }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.poll(pollId) });
@@ -183,12 +416,11 @@ export function useFinalizePoll() {
 }
 
 export function useDeletePoll() {
-  const deletePoll = usePollStore((s) => s.deletePoll);
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (pollId: string) => {
-      deletePoll(pollId);
+      await deletePoll(pollId);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.polls });
@@ -197,22 +429,20 @@ export function useDeletePoll() {
   });
 }
 
-// Helper functions (re-export from poll-store for convenience)
 export {
-  getDateKey,
-  parseDateKey,
-  formatTime,
-  formatTimeShort,
-  generateTimeSlotsFromDayAvailability,
-  groupSlotsByDate,
   countDaysWithAvailability,
-  formatSlotTime,
-  formatSlotDate,
   formatDateHeader,
   formatDateShort,
-} from './poll-store';
+  formatSlotDate,
+  formatSlotTime,
+  formatTime,
+  formatTimeShort,
+  generateSlotsFromAvailability,
+  getDateKey,
+  groupSlotsByDate,
+  parseDateKey,
+};
 
-// Slot stats helper
 export function getSlotStats(
   responses: Response[],
   slotId: string
@@ -226,11 +456,7 @@ export function getSlotStats(
   };
 }
 
-// Rank slots helper
-export function rankSlots(
-  timeSlots: TimeSlot[],
-  responses: Response[]
-): TimeSlot[] {
+export function rankSlots(timeSlots: TimeSlot[], responses: Response[]): TimeSlot[] {
   return [...timeSlots].sort((a, b) => {
     const statsA = getSlotStats(responses, a.id);
     const statsB = getSlotStats(responses, b.id);
@@ -239,4 +465,8 @@ export function rankSlots(
     if (statsA.no !== statsB.no) return statsA.no - statsB.no;
     return statsB.maybe - statsA.maybe;
   });
+}
+
+export function getParticipantForPoll(pollId: string, sessionId: string) {
+  return getParticipant(pollId, sessionId);
 }
