@@ -36,13 +36,13 @@ import {
   countDaysWithAvailability,
   formatDateHeader,
   formatSlotTime,
+  generateSlotsFromAvailability,
+  getDateKey,
+  groupSlotsByDate,
   type DayAvailabilityBlock,
   type PreviewTimeSlot,
 } from '@/lib/use-database';
-import {
-  generateTimeSlotsFromDayAvailability,
-  groupSlotsByDate,
-} from '@/lib/poll-store';
+import { getSlotDateRange } from '@/lib/availability';
 import AvailabilityGridPicker from '@/components/AvailabilityGridPicker';
 
 const DURATIONS = [15, 30, 60, 90, 120];
@@ -59,8 +59,9 @@ function slotHasConflict(
   slot: PreviewTimeSlot,
   events: CalendarEvent[]
 ): boolean {
-  const slotStart = new Date(slot.startISO).getTime();
-  const slotEnd = new Date(slot.endISO).getTime();
+  const { start, end } = getSlotDateRange(slot);
+  const slotStart = start.getTime();
+  const slotEnd = end.getTime();
 
   return events.some((event) => {
     const eventStart = new Date(event.startDate).getTime();
@@ -98,7 +99,7 @@ export default function CreatePollScreen() {
 
   // Generate preview slots
   const previewSlots = useMemo(() => {
-    return generateTimeSlotsFromDayAvailability(dayAvailability, duration);
+    return generateSlotsFromAvailability(dayAvailability, duration);
   }, [dayAvailability, duration]);
 
   // Group slots by date for preview
@@ -190,8 +191,8 @@ export default function CreatePollScreen() {
       const pollId = await createPollMutation.mutateAsync({
         title: title.trim() || 'Find a time to meet',
         durationMinutes: duration,
-        dateRangeStart: dateRangeStart.toISOString(),
-        dateRangeEnd: dateRangeEnd.toISOString(),
+        dateRangeStart: getDateKey(dateRangeStart),
+        dateRangeEnd: getDateKey(dateRangeEnd),
         dayAvailability,
         timeSlots: previewSlots,
       });

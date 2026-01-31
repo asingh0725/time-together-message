@@ -19,7 +19,7 @@ import {
   type DayAvailabilityBlock,
   getDateKey,
   formatTimeShort,
-} from '@/lib/poll-store';
+} from '@/lib/availability';
 import { v4 as uuidv4 } from 'uuid';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -39,6 +39,7 @@ interface AvailabilityGridPickerProps {
   initialAvailability: DayAvailabilityBlock[];
   calendarEvents?: CalendarEvent[];
   useCalendar?: boolean;
+  readOnly?: boolean;
   onSave: (availability: DayAvailabilityBlock[]) => void;
   onCancel: () => void;
 }
@@ -194,6 +195,7 @@ export default function AvailabilityGridPicker({
   initialAvailability,
   calendarEvents = [],
   useCalendar = false,
+  readOnly = false,
   onSave,
   onCancel,
 }: AvailabilityGridPickerProps) {
@@ -238,6 +240,7 @@ export default function AvailabilityGridPicker({
   }, [selectedCells, useCalendar, calendarEvents, durationMinutes]);
 
   const toggleCell = useCallback((dateKey: string, hour: number, minute: number) => {
+    if (readOnly) return;
     const cellKey = `${dateKey}|${hour}|${minute}`;
 
     if (lastToggledCell.current === cellKey) return;
@@ -254,7 +257,7 @@ export default function AvailabilityGridPicker({
     });
 
     Haptics.selectionAsync();
-  }, []);
+  }, [readOnly]);
 
   const handleCellPress = useCallback((dateKey: string, hour: number, minute: number) => {
     toggleCell(dateKey, hour, minute);
@@ -311,6 +314,11 @@ export default function AvailabilityGridPicker({
           <Text className="text-zinc-400 text-sm text-center">
             Tap cells to mark when you're available. Each day is independent.
           </Text>
+          {readOnly && (
+            <Text className="text-zinc-500 text-xs text-center mt-1">
+              Availability locked after poll creation
+            </Text>
+          )}
           {useCalendar && (
             <View className="flex-row items-center justify-center gap-4 mt-2">
               <View className="flex-row items-center gap-1.5">

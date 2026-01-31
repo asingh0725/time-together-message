@@ -25,6 +25,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
+import * as ExpoCalendar from 'expo-calendar';
 import Animated, {
   FadeInDown,
   FadeInUp,
@@ -202,7 +203,12 @@ export default function PollDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
 
-  const { data: poll, isLoading: pollLoading } = usePoll(id ?? '');
+  const pollId = typeof id === 'string' ? id : '';
+  const {
+    data: poll,
+    isLoading: pollLoading,
+    isError: pollError,
+  } = usePoll(pollId);
   const { data: user } = useCurrentUser();
   const addResponseMutation = useAddResponse();
   const finalizePollMutation = useFinalizePoll();
@@ -211,6 +217,31 @@ export default function PollDetailScreen() {
   const currentUserId = user?.id ?? '';
   const isCreator = poll?.creatorId === currentUserId;
   const isFinalized = poll?.status === 'finalized';
+
+  if (pollLoading) {
+    return (
+      <View className="flex-1 bg-zinc-950 items-center justify-center">
+        <ActivityIndicator size="large" color="#3b82f6" />
+      </View>
+    );
+  }
+
+  if (!pollId || pollError || !poll) {
+    return (
+      <View className="flex-1 bg-zinc-950 items-center justify-center px-6">
+        <Text className="text-white text-lg font-semibold mb-2">Poll not found</Text>
+        <Text className="text-zinc-400 text-sm text-center mb-6">
+          This poll link is invalid, no longer available, or failed to load.
+        </Text>
+        <Pressable
+          onPress={() => router.replace('/')}
+          className="px-5 py-3 rounded-xl bg-blue-600"
+        >
+          <Text className="text-white font-semibold">Back to Home</Text>
+        </Pressable>
+      </View>
+    );
+  }
 
   const rankedSlots = useMemo(() => {
     if (!poll) return [];
@@ -221,7 +252,7 @@ export default function PollDetailScreen() {
     (slotId: string): Availability | null => {
       if (!poll) return null;
       const response = poll.responses.find(
-        (r: Response) => r.participantId === currentUserId && r.slotId === slotId
+        (r: Response) => r.sessionId === currentUserId && r.slotId === slotId
       );
       return response?.availability ?? null;
     },
@@ -230,7 +261,7 @@ export default function PollDetailScreen() {
 
   const respondentCount = useMemo(() => {
     if (!poll) return 0;
-    const uniqueParticipants = new Set(poll.responses.map((r: Response) => r.participantId));
+    const uniqueParticipants = new Set(poll.responses.map((r: Response) => r.sessionId));
     return uniqueParticipants.size;
   }, [poll]);
 
@@ -271,6 +302,41 @@ export default function PollDetailScreen() {
     finalizePollMutation.mutate({ pollId: poll.id, slotId });
   };
 
+  const handleCreateCalendarEvent = async () => {
+    if (!poll?.finalizedSlotId) return;
+    const finalizedSlot = poll.timeSlots.find((slot) => slot.id === poll.finalizedSlotId);
+    if (!finalizedSlot) return;
+
+    const { status } = await ExpoCalendar.requestCalendarPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Calendar Access', 'Allow calendar access to create an event.');
+      return;
+    }
+
+    const calendars = await ExpoCalendar.getCalendarsAsync(ExpoCalendar.EntityTypes.EVENT);
+    const defaultCalendar =
+      calendars.find((calendar) => calendar.isPrimary) ||
+      calendars.find((calendar) => calendar.allowsModifications) ||
+      calendars[0];
+
+    if (!defaultCalendar) {
+      Alert.alert('No Calendar Found', 'Please create a calendar to add events.');
+      return;
+    }
+
+    const startDate = new Date(`${finalizedSlot.day}T${finalizedSlot.startTime}:00`);
+    const endDate = new Date(`${finalizedSlot.day}T${finalizedSlot.endTime}:00`);
+
+    await ExpoCalendar.createEventAsync(defaultCalendar.id, {
+      title: poll.title,
+      startDate,
+      endDate,
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    });
+
+    Alert.alert('Event Added', 'The finalized time was added to your calendar.');
+  };
+
   const handleDelete = () => {
     if (!poll || !isCreator) return;
 
@@ -295,29 +361,6 @@ export default function PollDetailScreen() {
     if (!poll) return;
     addResponseMutation.mutate({ pollId: poll.id, slotId, availability });
   };
-
-  if (pollLoading) {
-    return (
-      <View className="flex-1 bg-zinc-950 items-center justify-center">
-        <ActivityIndicator size="large" color="#3b82f6" />
-        <Text className="text-zinc-400 mt-4">Loading poll...</Text>
-      </View>
-    );
-  }
-
-  if (!poll) {
-    return (
-      <View className="flex-1 bg-zinc-950 items-center justify-center">
-        <Text className="text-zinc-400">Poll not found</Text>
-        <Pressable
-          onPress={() => router.back()}
-          className="mt-4 px-4 py-2 bg-zinc-800 rounded-lg"
-        >
-          <Text className="text-white">Go Back</Text>
-        </Pressable>
-      </View>
-    );
-  }
 
   return (
     <View className="flex-1 bg-zinc-950">
@@ -373,6 +416,9 @@ export default function PollDetailScreen() {
             <Text className="text-white text-2xl font-bold mb-2">
               {poll.title}
             </Text>
+            <Text className="text-zinc-500 text-xs">
+              Availability locked after poll creation
+            </Text>
 
             <View className="flex-row items-center gap-4 mt-2">
               <View className="flex-row items-center gap-1.5">
@@ -410,6 +456,16 @@ export default function PollDetailScreen() {
                       poll.timeSlots.find((s: TimeSlot) => s.id === poll.finalizedSlotId)!
                     )}
                   </Text>
+                )}
+                {poll.finalizedSlotId && (
+                  <Pressable
+                    onPress={handleCreateCalendarEvent}
+                    className="mt-3 px-3 py-2 rounded-lg bg-emerald-900/60 self-start"
+                  >
+                    <Text className="text-emerald-300 text-xs font-semibold">
+                      Create Calendar Event
+                    </Text>
+                  </Pressable>
                 )}
               </View>
             )}
