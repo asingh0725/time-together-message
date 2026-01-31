@@ -86,9 +86,13 @@ function PollCard({ poll, currentUserId, onPress, index }: PollCardProps) {
               </Text>
             ) : (
               <Text className="text-zinc-500 text-sm mt-1">
-                {format(parseDateKey(poll.dateRangeStart), 'MMM d')} -{' '}
-                {format(parseDateKey(poll.dateRangeEnd), 'MMM d')}
-              </Text>
+  {poll.timeSlots.length > 0
+    ? `${formatSlotDate(poll.timeSlots[0])} – ${formatSlotDate(
+        poll.timeSlots[poll.timeSlots.length - 1]
+      )}`
+    : 'No dates selected'}
+</Text>
+
             )}
 
             <View className="flex-row items-center gap-4 mt-3">

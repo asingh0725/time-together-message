@@ -25,8 +25,6 @@ function mapPollRow(row: PollRow): PollRecord {
     finalizedSlotId: row.finalized_slot_id ?? null,
     finalizedAt: row.finalized_at ?? null,
     creatorId: row.creator_id ?? row.creator_session_id ?? null,
-    dateRangeStart: row.date_range_start ?? null,
-    dateRangeEnd: row.date_range_end ?? null,
   };
 }
 
@@ -69,8 +67,6 @@ export async function createPoll(poll: PollRecord): Promise<void> {
       finalized_slot_id: poll.finalizedSlotId,
       finalized_at: poll.finalizedAt ?? null,
       creator_session_id: poll.creatorId ?? null,
-      date_range_start: poll.dateRangeStart ?? null,
-      date_range_end: poll.dateRangeEnd ?? null,
     },
   });
 }

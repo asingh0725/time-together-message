@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -8,9 +8,9 @@ import {
   Alert,
   Platform,
   ActivityIndicator,
-} from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+} from "react-native";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { SafeAreaView } from "react-native-safe-area-context";
 import {
   ChevronLeft,
   Share2,
@@ -21,17 +21,14 @@ import {
   Users,
   Trophy,
   Trash2,
-} from 'lucide-react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import * as Haptics from 'expo-haptics';
-import * as Clipboard from 'expo-clipboard';
-import * as ExpoCalendar from 'expo-calendar';
-import Animated, {
-  FadeInDown,
-  FadeInUp,
-} from 'react-native-reanimated';
+} from "lucide-react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import * as Haptics from "expo-haptics";
+import * as Clipboard from "expo-clipboard";
+import * as ExpoCalendar from "expo-calendar";
+import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 
-import { cn } from '@/lib/cn';
+import { cn } from "@/lib/cn";
 import {
   usePoll,
   useCurrentUser,
@@ -45,7 +42,7 @@ import {
   type Availability,
   type TimeSlot,
   type Response,
-} from '@/lib/use-database';
+} from "@/lib/use-database";
 
 interface TimeSlotCardProps {
   slot: TimeSlot;
@@ -70,21 +67,24 @@ function TimeSlotCard({
 }: TimeSlotCardProps) {
   const stats = getSlotStats(responses, slot.id);
 
-  const handleRespond = (availability: Availability) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    onRespond(availability);
-  };
+  const handleRespond = useCallback(
+    (availability: Availability) => {
+      onRespond(availability);
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    },
+    [onRespond]
+  );
 
   return (
     <Animated.View
       entering={FadeInUp.delay(100 + index * 50).springify()}
       className={cn(
-        'bg-zinc-900 border rounded-2xl p-4 mb-3',
+        "bg-zinc-900 border rounded-2xl p-4 mb-3",
         isSelected
-          ? 'border-emerald-500 bg-emerald-950/30'
+          ? "border-emerald-500 bg-emerald-950/30"
           : isBestOption && !isFinalized
-          ? 'border-blue-500/50'
-          : 'border-zinc-800'
+          ? "border-blue-500/50"
+          : "border-zinc-800"
       )}
     >
       {/* Header */}
@@ -135,19 +135,22 @@ function TimeSlotCard({
       {!isFinalized && (
         <View className="flex-row gap-2">
           <Pressable
-            onPress={() => handleRespond('yes')}
+            onPress={() => handleRespond("yes")}
             className={cn(
-              'flex-1 py-3 rounded-xl flex-row items-center justify-center gap-2 border',
-              userResponse === 'yes'
-                ? 'bg-emerald-600 border-emerald-500'
-                : 'bg-zinc-800/50 border-zinc-700'
+              "flex-1 py-3 rounded-xl flex-row items-center justify-center gap-2 border",
+              userResponse === "yes"
+                ? "bg-emerald-600 border-emerald-500"
+                : "bg-zinc-800/50 border-zinc-700"
             )}
           >
-            <Check size={18} color={userResponse === 'yes' ? 'white' : '#a1a1aa'} />
+            <Check
+              size={18}
+              color={userResponse === "yes" ? "white" : "#a1a1aa"}
+            />
             <Text
               className={cn(
-                'font-medium',
-                userResponse === 'yes' ? 'text-white' : 'text-zinc-400'
+                "font-medium",
+                userResponse === "yes" ? "text-white" : "text-zinc-400"
               )}
             >
               Yes
@@ -155,19 +158,22 @@ function TimeSlotCard({
           </Pressable>
 
           <Pressable
-            onPress={() => handleRespond('maybe')}
+            onPress={() => handleRespond("maybe")}
             className={cn(
-              'flex-1 py-3 rounded-xl flex-row items-center justify-center gap-2 border',
-              userResponse === 'maybe'
-                ? 'bg-amber-600 border-amber-500'
-                : 'bg-zinc-800/50 border-zinc-700'
+              "flex-1 py-3 rounded-xl flex-row items-center justify-center gap-2 border",
+              userResponse === "maybe"
+                ? "bg-amber-600 border-amber-500"
+                : "bg-zinc-800/50 border-zinc-700"
             )}
           >
-            <HelpCircle size={18} color={userResponse === 'maybe' ? 'white' : '#a1a1aa'} />
+            <HelpCircle
+              size={18}
+              color={userResponse === "maybe" ? "white" : "#a1a1aa"}
+            />
             <Text
               className={cn(
-                'font-medium',
-                userResponse === 'maybe' ? 'text-white' : 'text-zinc-400'
+                "font-medium",
+                userResponse === "maybe" ? "text-white" : "text-zinc-400"
               )}
             >
               Maybe
@@ -175,19 +181,19 @@ function TimeSlotCard({
           </Pressable>
 
           <Pressable
-            onPress={() => handleRespond('no')}
+            onPress={() => handleRespond("no")}
             className={cn(
-              'flex-1 py-3 rounded-xl flex-row items-center justify-center gap-2 border',
-              userResponse === 'no'
-                ? 'bg-rose-600 border-rose-500'
-                : 'bg-zinc-800/50 border-zinc-700'
+              "flex-1 py-3 rounded-xl flex-row items-center justify-center gap-2 border",
+              userResponse === "no"
+                ? "bg-rose-600 border-rose-500"
+                : "bg-zinc-800/50 border-zinc-700"
             )}
           >
-            <X size={18} color={userResponse === 'no' ? 'white' : '#a1a1aa'} />
+            <X size={18} color={userResponse === "no" ? "white" : "#a1a1aa"} />
             <Text
               className={cn(
-                'font-medium',
-                userResponse === 'no' ? 'text-white' : 'text-zinc-400'
+                "font-medium",
+                userResponse === "no" ? "text-white" : "text-zinc-400"
               )}
             >
               No
@@ -200,25 +206,67 @@ function TimeSlotCard({
 }
 
 export default function PollDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  // -------------------------
+  // ROUTING & PARAMS
+  // -------------------------
+  const { id } = useLocalSearchParams<{ id?: string }>();
   const router = useRouter();
+  const pollId = typeof id === "string" ? id : null;
 
-  const pollId = typeof id === 'string' ? id : '';
-  const {
-    data: poll,
-    isLoading: pollLoading,
-    isError: pollError,
-  } = usePoll(pollId);
-  const { data: user } = useCurrentUser();
+  // -------------------------
+  // DATA HOOKS (ALWAYS CALLED)
+  // -------------------------
+  const pollQuery = usePoll(pollId ?? "");
+  const userQuery = useCurrentUser();
+
   const addResponseMutation = useAddResponse();
   const finalizePollMutation = useFinalizePoll();
   const deletePollMutation = useDeletePoll();
 
-  const currentUserId = user?.id ?? '';
-  const isCreator = poll?.creatorId === currentUserId;
-  const isFinalized = poll?.status === 'finalized';
+  const poll = pollQuery.data;
+  const user = userQuery.data;
 
-  if (pollLoading) {
+  const currentUserId = user?.id ?? "";
+  const isCreator = poll?.creatorId === currentUserId;
+  const isFinalized = poll?.status === "finalized";
+
+  // -------------------------
+  // DERIVED DATA (SAFE)
+  // -------------------------
+  const rankedSlots = useMemo(() => {
+    if (!poll) return [];
+    return rankSlots(poll.timeSlots ?? [], poll.responses ?? []);
+  }, [poll]);
+
+  const respondentCount = useMemo(() => {
+    if (!poll) return 0;
+    return new Set(poll.responses.map((r) => r.sessionId)).size;
+  }, [poll]);
+
+  const getUserResponse = useCallback(
+    (slotId: string): Availability | null => {
+      if (!poll) return null;
+      return (
+        poll.responses.find(
+          (r) => r.sessionId === currentUserId && r.slotId === slotId
+        )?.availability ?? null
+      );
+    },
+    [poll, currentUserId]
+  );
+
+  // -------------------------
+  // EARLY UI STATES (AFTER HOOKS)
+  // -------------------------
+  if (!pollId) {
+    return (
+      <View className="flex-1 bg-zinc-950 items-center justify-center">
+        <Text className="text-white">Invalid poll</Text>
+      </View>
+    );
+  }
+
+  if (pollQuery.isLoading) {
     return (
       <View className="flex-1 bg-zinc-950 items-center justify-center">
         <ActivityIndicator size="large" color="#3b82f6" />
@@ -226,15 +274,14 @@ export default function PollDetailScreen() {
     );
   }
 
-  if (!pollId || pollError || !poll) {
+  if (pollQuery.isError || !poll) {
     return (
       <View className="flex-1 bg-zinc-950 items-center justify-center px-6">
-        <Text className="text-white text-lg font-semibold mb-2">Poll not found</Text>
-        <Text className="text-zinc-400 text-sm text-center mb-6">
-          This poll link is invalid, no longer available, or failed to load.
+        <Text className="text-white text-lg font-semibold mb-2">
+          Poll not found
         </Text>
         <Pressable
-          onPress={() => router.replace('/')}
+          onPress={() => router.replace("/")}
           className="px-5 py-3 rounded-xl bg-blue-600"
         >
           <Text className="text-white font-semibold">Back to Home</Text>
@@ -243,27 +290,16 @@ export default function PollDetailScreen() {
     );
   }
 
-  const rankedSlots = useMemo(() => {
-    if (!poll) return [];
-    return rankSlots(poll.timeSlots, poll.responses);
-  }, [poll]);
-
-  const getUserResponse = useCallback(
-    (slotId: string): Availability | null => {
-      if (!poll) return null;
-      const response = poll.responses.find(
-        (r: Response) => r.sessionId === currentUserId && r.slotId === slotId
-      );
-      return response?.availability ?? null;
-    },
-    [poll, currentUserId]
-  );
-
-  const respondentCount = useMemo(() => {
-    if (!poll) return 0;
-    const uniqueParticipants = new Set(poll.responses.map((r: Response) => r.sessionId));
-    return uniqueParticipants.size;
-  }, [poll]);
+  // -------------------------
+  // ACTION HANDLERS
+  // -------------------------
+  const handleRespond = (slotId: string, availability: Availability) => {
+    addResponseMutation.mutate({
+      pollId: poll.id,
+      slotId,
+      availability,
+    });
+  };
 
   const handleShare = async () => {
     if (!poll) return;
@@ -271,12 +307,12 @@ export default function PollDetailScreen() {
 
     const shareMessage = `${poll.title}\n\nHelp us find a time to meet! Respond here:\ntimetogether://poll/${poll.id}`;
 
-    if (Platform.OS === 'web') {
+    if (Platform.OS === "web") {
       try {
         await Clipboard.setStringAsync(shareMessage);
-        Alert.alert('Copied!', 'Poll link copied to clipboard');
+        Alert.alert("Copied!", "Poll link copied to clipboard");
       } catch (error) {
-        console.log('Clipboard error:', error);
+        console.log("Clipboard error:", error);
       }
       return;
     }
@@ -289,86 +325,72 @@ export default function PollDetailScreen() {
     } catch (error) {
       try {
         await Clipboard.setStringAsync(shareMessage);
-        Alert.alert('Copied!', 'Poll link copied to clipboard');
+        Alert.alert("Copied!", "Poll link copied to clipboard");
       } catch (clipboardError) {
-        console.log('Share and clipboard failed:', error, clipboardError);
+        console.log("Share and clipboard failed:", error, clipboardError);
       }
     }
   };
 
   const handleFinalize = (slotId: string) => {
-    if (!poll || !isCreator) return;
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    if (!isCreator) return;
     finalizePollMutation.mutate({ pollId: poll.id, slotId });
   };
 
+  const handleDelete = () => {
+    if (!isCreator) return;
+
+    Alert.alert("Delete Poll", "This action cannot be undone.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          await deletePollMutation.mutateAsync(poll.id);
+          router.back();
+        },
+      },
+    ]);
+  };
+
   const handleCreateCalendarEvent = async () => {
-    if (!poll?.finalizedSlotId) return;
-    const finalizedSlot = poll.timeSlots.find((slot) => slot.id === poll.finalizedSlotId);
-    if (!finalizedSlot) return;
+    if (!poll.finalizedSlotId) return;
+
+    const slot = poll.timeSlots.find((s) => s.id === poll.finalizedSlotId);
+    if (!slot) return;
+
+    const start = new Date(`${slot.day}T${slot.startTime}`);
+    const end = new Date(`${slot.day}T${slot.endTime}`);
+
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      Alert.alert("Invalid time", "Unable to create calendar event.");
+      return;
+    }
 
     const { status } = await ExpoCalendar.requestCalendarPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Calendar Access', 'Allow calendar access to create an event.');
-      return;
-    }
+    if (status !== "granted") return;
 
-    const calendars = await ExpoCalendar.getCalendarsAsync(ExpoCalendar.EntityTypes.EVENT);
-    const defaultCalendar =
-      calendars.find((calendar) => calendar.isPrimary) ||
-      calendars.find((calendar) => calendar.allowsModifications) ||
-      calendars[0];
+    const calendars = await ExpoCalendar.getCalendarsAsync(
+      ExpoCalendar.EntityTypes.EVENT
+    );
+    const calendar = calendars.find((c) => c.isPrimary) ?? calendars[0];
+    if (!calendar) return;
 
-    if (!defaultCalendar) {
-      Alert.alert('No Calendar Found', 'Please create a calendar to add events.');
-      return;
-    }
-
-    const startDate = new Date(`${finalizedSlot.day}T${finalizedSlot.startTime}:00`);
-    const endDate = new Date(`${finalizedSlot.day}T${finalizedSlot.endTime}:00`);
-
-    await ExpoCalendar.createEventAsync(defaultCalendar.id, {
+    await ExpoCalendar.createEventAsync(calendar.id, {
       title: poll.title,
-      startDate,
-      endDate,
+      startDate: start,
+      endDate: end,
       timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     });
 
-    Alert.alert('Event Added', 'The finalized time was added to your calendar.');
+    Alert.alert("Event added to calendar");
   };
 
-  const handleDelete = () => {
-    if (!poll || !isCreator) return;
-
-    Alert.alert(
-      'Delete Poll',
-      'Are you sure you want to delete this poll? This cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            await deletePollMutation.mutateAsync(poll.id);
-            router.back();
-          },
-        },
-      ]
-    );
-  };
-
-  const handleRespond = (slotId: string, availability: Availability) => {
-    if (!poll) return;
-    addResponseMutation.mutate({ pollId: poll.id, slotId, availability });
-  };
-
+  // -------------------------
+  // RENDER
+  // -------------------------
   return (
     <View className="flex-1 bg-zinc-950">
-      <LinearGradient
-        colors={['#18181b', '#09090b']}
-        style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }}
-      />
-
       <SafeAreaView className="flex-1">
         {/* Header */}
         <Animated.View
@@ -406,7 +428,9 @@ export default function PollDetailScreen() {
         <ScrollView
           className="flex-1 px-5"
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: isCreator && !isFinalized ? 120 : 40 }}
+          contentContainerStyle={{
+            paddingBottom: isCreator && !isFinalized ? 120 : 40,
+          }}
         >
           {/* Poll Info */}
           <Animated.View
@@ -426,14 +450,17 @@ export default function PollDetailScreen() {
                 <Text className="text-zinc-400 text-sm">
                   {poll.durationMinutes < 60
                     ? `${poll.durationMinutes} min`
-                    : `${poll.durationMinutes / 60} hour${poll.durationMinutes > 60 ? 's' : ''}`}
+                    : `${poll.durationMinutes / 60} hour${
+                        poll.durationMinutes > 60 ? "s" : ""
+                      }`}
                 </Text>
               </View>
 
               <View className="flex-row items-center gap-1.5">
                 <Users size={16} color="#a1a1aa" />
                 <Text className="text-zinc-400 text-sm">
-                  {respondentCount} {respondentCount === 1 ? 'response' : 'responses'}
+                  {respondentCount}{" "}
+                  {respondentCount === 1 ? "response" : "responses"}
                 </Text>
               </View>
             </View>
@@ -449,11 +476,15 @@ export default function PollDetailScreen() {
                 {poll.finalizedSlotId && (
                   <Text className="text-zinc-400 mt-1">
                     {formatSlotDate(
-                      poll.timeSlots.find((s: TimeSlot) => s.id === poll.finalizedSlotId)!
-                    )}{' '}
-                    at{' '}
+                      poll.timeSlots.find(
+                        (s: TimeSlot) => s.id === poll.finalizedSlotId
+                      )!
+                    )}{" "}
+                    at{" "}
                     {formatSlotTime(
-                      poll.timeSlots.find((s: TimeSlot) => s.id === poll.finalizedSlotId)!
+                      poll.timeSlots.find(
+                        (s: TimeSlot) => s.id === poll.finalizedSlotId
+                      )!
                     )}
                   </Text>
                 )}
@@ -488,7 +519,9 @@ export default function PollDetailScreen() {
                 slot={slot}
                 responses={poll.responses}
                 userResponse={getUserResponse(slot.id)}
-                onRespond={(availability) => handleRespond(slot.id, availability)}
+                onRespond={(availability) =>
+                  handleRespond(slot.id, availability)
+                }
                 isFinalized={isFinalized ?? false}
                 isBestOption={index === 0}
                 isSelected={poll.finalizedSlotId === slot.id}
@@ -505,9 +538,9 @@ export default function PollDetailScreen() {
             className="absolute bottom-0 left-0 right-0 p-5 pb-10"
           >
             <LinearGradient
-              colors={['transparent', '#09090b']}
+              colors={["transparent", "#09090b"]}
               style={{
-                position: 'absolute',
+                position: "absolute",
                 left: 0,
                 right: 0,
                 bottom: 0,
