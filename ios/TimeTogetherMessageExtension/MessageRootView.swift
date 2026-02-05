@@ -1,6 +1,7 @@
 import Messages
 import SwiftUI
 import WebKit
+internal import Combine
 
 // =============================================================================
 // PHASE 2: iMessage Extension WebView Store & UI
@@ -299,4 +300,10 @@ enum MessageURLValidator {
         let trimmed = pollId.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : trimmed
     }
-}
+}//
+//  MessageRootView.swift
+//  TimeTogether
+//
+//  Created by Aviraj Singh on 2/4/26.
+//
+
