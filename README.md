@@ -119,3 +119,65 @@ The app uses a React Query wrapper around Zustand store, providing:
 - Amber for warnings/conflicts
 - Haptic feedback on interactions
 - Smooth animations via react-native-reanimated
+
+## Phase 2: Deep Links & iMessage Integration
+
+### URL Schemes
+
+The app supports two URL formats for opening polls:
+
+1. **Universal Links** (recommended): `https://timetogether.app/poll/{pollId}`
+2. **Custom Scheme**: `timetogether://poll/{pollId}`
+
+### Universal Links Setup (REQUIRED FOR PRODUCTION)
+
+For universal links to work, you must host an `apple-app-site-association` file on your domain.
+
+**Path**: `https://timetogether.app/.well-known/apple-app-site-association`
+
+**Content** (no `.json` extension, served with `application/json` content type):
+
+```json
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "TEAM_ID.com.timetogether.app",
+        "paths": ["/poll/*"]
+      }
+    ]
+  },
+  "webcredentials": {
+    "apps": ["TEAM_ID.com.timetogether.app"]
+  }
+}
+```
+
+**Replace `TEAM_ID` with your Apple Developer Team ID** (found in your Apple Developer account).
+
+**Server requirements**:
+- File must be served over HTTPS
+- Content-Type: `application/json`
+- No redirects on the `.well-known` path
+- File must be accessible without authentication
+
+### iMessage Extension
+
+The iMessage extension allows users to:
+1. Create polls directly within iMessage
+2. Share poll links as rich message bubbles
+3. Tap existing poll messages to open them in the main app
+
+**Bundle Identifiers**:
+- Main app: `com.timetogether.app`
+- iMessage extension: `com.timetogether.app.MessagesExtension`
+
+### Deep Link Behavior
+
+| Scenario | Behavior |
+|----------|----------|
+| Valid poll ID, app installed | Opens poll detail screen |
+| Valid poll ID, app not installed | Opens web fallback (timetogether.app) |
+| Invalid/missing poll ID | Shows "Poll not found" error screen |
+| Malformed URL | Silently ignored (no crash) |
