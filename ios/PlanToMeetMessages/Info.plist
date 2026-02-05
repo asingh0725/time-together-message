@@ -6,6 +6,14 @@
 	<string>PlanToMeet</string>
 	<key>WEB_BASE_URL</key>
 	<string>https://plantomeet.app</string>
+	<key>SUPABASE_URL</key>
+	<string>$(SUPABASE_URL)</string>
+	<key>SUPABASE_ANON_KEY</key>
+	<string>$(SUPABASE_ANON_KEY)</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>PlanToMeet uses your calendar to show busy times and help avoid scheduling conflicts.</string>
+	<key>NSCalendarsUsageDescription</key>
+	<string>PlanToMeet uses your calendar to show busy times and help avoid scheduling conflicts.</string>
 	<key>NSExtension</key>
 	<dict>
 		<key>NSExtensionMainStoryboard</key>
