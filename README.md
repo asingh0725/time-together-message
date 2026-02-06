@@ -1,141 +1,98 @@
 # PlanToMeet
 
-A mobile-first scheduling app that helps groups find a common time to meet. Inspired by When2Meet, optimized for sharing via iMessage/SMS.
+A mobile-first scheduling app that helps groups find a common time to meet. Create polls in iMessage, share with friends, and find the perfect time.
+
+## Project Structure
+
+```
+TimeTogether/
+├── ios/                    # Native iOS app (Swift/SwiftUI)
+│   ├── PlanToMeet/        # Main iOS app
+│   ├── PlanToMeetMessages/ # iMessage extension
+│   └── Shared/            # Shared code between targets
+├── web/                    # Next.js web app
+│   ├── src/app/           # Pages and routes
+│   ├── src/components/    # React components
+│   └── src/lib/           # Utilities and API
+└── supabase/              # Database schema
+```
 
 ## Features
 
 ### Core Flow
 1. **Create a Poll** - Set event title, duration, date range, and mark availability
-2. **Share** - Copy link or share directly via any messaging app
+2. **Share** - Send directly via iMessage or share link
 3. **Respond** - Tap Yes/Maybe/No for each time slot
-4. **Decide** - View ranked results, finalize the best time
+4. **Finalize** - Lock in the best time and add to calendar
 
 ### Key Features
+- **Native iMessage Integration** - Create and share polls without leaving Messages
 - **No accounts required** - Anyone can respond via shared link
-- **Day-specific availability** - Mark availability for each day independently (When2Meet-style)
-- **Visual Grid Picker** - Tap cells on a calendar grid to mark when you're free
-- **Calendar Integration** - Optionally sync with your device calendar to see busy times while selecting availability
-- **Conflict Indicators** - Amber highlights show when selected times overlap with calendar events
-- **Slot Preview** - See exactly what time options will be generated, grouped by date
-- **Visual results** - See ranked options with Yes/Maybe/No counts
-- **One-tap finalize** - Lock in the best time with a single tap
-- **Dark mode design** - Apple-native aesthetic
+- **Visual Grid Picker** - Tap cells on a calendar grid to mark availability
+- **Calendar Integration** - See busy times while selecting availability
+- **Real-time Updates** - See votes as they come in
+- **One-tap finalize** - Creator locks in the best time
+- **Add to Calendar** - Everyone can add the finalized event
 
-## Availability Model
+## iOS App
 
-The app uses **day-specific availability** (not a global daily window):
+### Requirements
+- iOS 16.0+
+- Xcode 15+
 
-- Users mark availability for specific days and times
-- Each day is independent
-- Gaps and non-contiguous blocks are allowed
-- Example: Free on Mon 9-11am, Tue 1-4pm, but not Wed at all
+### Setup
+1. Open `ios/PlanToMeet.xcodeproj` in Xcode
+2. Copy `ios/Shared/Secrets.xcconfig.example` to `ios/Shared/Secrets.xcconfig`
+3. Add your Supabase credentials to `Secrets.xcconfig`
+4. Build and run
 
-This matches real-world scheduling behavior.
+### Targets
+- **PlanToMeet** - Main iOS app for viewing polls and settings
+- **PlanToMeetMessages** - iMessage extension for creating/voting on polls
 
-## Calendar Integration
+## Web App
 
-The app optionally integrates with your device's calendar:
+### Requirements
+- Node.js 18+
 
-- **Toggle on** "Use my calendar" to see busy times in the grid picker
-- **Busy cells** appear muted with a diagonal stripe pattern
-- **Conflict cells** (selected + busy) appear in amber
-- **Privacy-first**: Calendar data stays on your device and is only used to highlight conflicts
-- Conflicts are carried through to the slot preview with an indicator
-
-This helps users avoid scheduling over existing commitments while still allowing flexibility.
-
-## App Structure
-
-```
-src/app/
-├── (tabs)/
-│   ├── _layout.tsx      # Tab configuration (hidden)
-│   └── index.tsx        # Home screen - poll list
-├── create.tsx           # Create new poll with availability picker
-├── poll/[id].tsx        # Poll detail & response
-├── settings.tsx         # User settings
-└── _layout.tsx          # Root navigation
-
-src/components/
-├── AvailabilityGridPicker.tsx  # When2Meet-style grid picker
-└── ...
+### Setup
+```bash
+cd web
+npm install
+cp .env.example .env.local
+# Edit .env.local with your Supabase credentials
+npm run dev
 ```
 
-## Data Model
+### Features
+- Server-side rendering for fast loads and OG tags
+- PWA support - installable on mobile devices
+- Real-time poll updates
+- Calendar file download (.ics)
 
-```typescript
-DayAvailabilityBlock {
-  id: string
-  date: string           // YYYY-MM-DD
-  startHour: number      // 0-23
-  startMinute: number    // 0-59
-  endHour: number
-  endMinute: number
-}
+## Database (Supabase)
 
-Poll {
-  id: string
-  title: string
-  durationMinutes: number
-  dateRangeStart: string
-  dateRangeEnd: string
-  dayAvailability: DayAvailabilityBlock[]
-  timeSlots: TimeSlot[]
-  responses: Response[]
-  status: 'open' | 'finalized'
-  finalizedSlotId?: string
-}
-```
+### Tables
+- `polls` - Poll metadata (title, duration, status)
+- `time_slots` - Available time options
+- `responses` - User votes (yes/maybe/no)
+- `participants` - Poll participants with display names
+- `availability_blocks` - Creator's availability ranges
 
-## Slot Generation Logic
+### Schema
+See `supabase/` directory for migrations and schema.
 
-Time slots are generated from day-specific availability:
-- Each slot must fit fully inside a marked availability block
-- Slots respect the selected duration
-- Slots are associated with specific dates
+## Universal Links
 
-Example:
-- Jan 30: Marked 9–11 AM, Duration 1h → Slots: 9–10, 10–11
-- Jan 31: Marked 1–4 PM, Duration 1h → Slots: 1–2, 2–3, 3–4
-- Feb 1: No availability marked → No slots
+Polls are accessible at `https://plantomeet.app/poll/{pollId}`
 
-## State Management
+- **iOS installed** → Opens native app
+- **iOS not installed** → Opens web app
+- **Other platforms** → Opens web app
 
-- **Zustand** with AsyncStorage persistence for local poll data
-- **React Query** hooks wrapping Zustand for consistent async patterns
-- All scheduling logic in `src/lib/poll-store.ts`
-- Database hooks in `src/lib/use-database.ts`
+### Apple App Site Association
 
-The app uses a React Query wrapper around Zustand store, providing:
-- Consistent loading/error states
-- Automatic query invalidation on mutations
-- Type-safe hooks for all operations
-
-## Design System
-
-- Dark theme with zinc color palette
-- Blue primary accent (#3b82f6)
-- Emerald for success/finalized states
-- Amber for warnings/conflicts
-- Haptic feedback on interactions
-- Smooth animations via react-native-reanimated
-
-## Phase 2: Deep Links & iMessage Integration
-
-### URL Schemes
-
-The app supports two URL formats for opening polls:
-
-1. **Universal Links** (recommended): `https://plantomeet.app/poll/{pollId}`
-2. **Custom Scheme**: `plantomeet://poll/{pollId}`
-
-### Universal Links Setup (REQUIRED FOR PRODUCTION)
-
-For universal links to work, you must host an `apple-app-site-association` file on your domain.
-
-**Path**: `https://plantomeet.app/.well-known/apple-app-site-association`
-
-**Content** (no `.json` extension, served with `application/json` content type):
+Host at `https://plantomeet.app/.well-known/apple-app-site-association`:
 
 ```json
 {
@@ -147,37 +104,59 @@ For universal links to work, you must host an `apple-app-site-association` file 
         "paths": ["/poll/*"]
       }
     ]
-  },
-  "webcredentials": {
-    "apps": ["TEAM_ID.com.aviraj.plantomeet"]
   }
 }
 ```
 
-**Replace `TEAM_ID` with your Apple Developer Team ID** (found in your Apple Developer account).
+## Design System
 
-**Server requirements**:
-- File must be served over HTTPS
-- Content-Type: `application/json`
-- No redirects on the `.well-known` path
-- File must be accessible without authentication
+- Dark theme with zinc color palette
+- Blue primary accent (#3b82f6)
+- Green for success/finalized states
+- Orange for "maybe" responses
+- Red for "no" responses
 
-### iMessage Extension
+## Development
 
-The iMessage extension allows users to:
-1. Create polls directly within iMessage
-2. Share poll links as rich message bubbles
-3. Tap existing poll messages to open them in the main app
+### iOS Development
+```bash
+cd ios
+open PlanToMeet.xcodeproj
+```
 
-**Bundle Identifiers**:
-- Main app: `com.aviraj.plantomeet`
-- iMessage extension: `com.aviraj.plantomeet.messageextension`
+### Web Development
+```bash
+cd web
+npm run dev
+```
 
-### Deep Link Behavior
+### Environment Variables
 
-| Scenario | Behavior |
-|----------|----------|
-| Valid poll ID, app installed | Opens poll detail screen |
-| Valid poll ID, app not installed | Opens web fallback (plantomeet.app) |
-| Invalid/missing poll ID | Shows "Poll not found" error screen |
-| Malformed URL | Silently ignored (no crash) |
+**iOS** (`ios/Shared/Secrets.xcconfig`):
+```
+SUPABASE_URL = https://your-project.supabase.co
+SUPABASE_ANON_KEY = your-anon-key
+```
+
+**Web** (`web/.env.local`):
+```
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+```
+
+## Deployment
+
+### Web (Vercel)
+1. Connect repo to Vercel
+2. Set root directory to `web`
+3. Add environment variables
+4. Deploy
+
+### iOS (App Store)
+1. Archive in Xcode
+2. Upload to App Store Connect
+3. Submit for review
+
+## License
+
+MIT
