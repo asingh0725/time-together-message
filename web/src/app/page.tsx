@@ -353,12 +353,12 @@ export default function LandingPage() {
             <span className="font-medium text-white">PlanToMeet</span>
           </div>
           <div className="flex items-center gap-6 text-sm text-text-tertiary">
-            <a href="#" className="hover:text-white transition-colors">
+            <Link href="/privacy" className="hover:text-white transition-colors">
               Privacy Policy
-            </a>
-            <a href="#" className="hover:text-white transition-colors">
+            </Link>
+            <Link href="/terms" className="hover:text-white transition-colors">
               Terms of Service
-            </a>
+            </Link>
             <a href="mailto:support@plantomeet.app" className="hover:text-white transition-colors">
               Contact
             </a>
