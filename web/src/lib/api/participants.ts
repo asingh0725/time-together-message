@@ -6,7 +6,16 @@ export async function addParticipant(
   sessionId: string,
   displayName: string
 ): Promise<void> {
-  await supabaseRequest('participants?on_conflict=poll_id,session_id', {
+  // First, delete any existing participant for this combination
+  await supabaseRequest(
+    `participants?poll_id=eq.${pollId}&session_id=eq.${sessionId}`,
+    {
+      method: 'DELETE',
+    }
+  )
+
+  // Then insert the new participant
+  await supabaseRequest('participants', {
     method: 'POST',
     body: {
       poll_id: pollId,
@@ -14,7 +23,7 @@ export async function addParticipant(
       display_name: displayName,
     },
     headers: {
-      Prefer: 'return=minimal,resolution=merge-duplicates',
+      Prefer: 'return=minimal',
     },
   })
 }

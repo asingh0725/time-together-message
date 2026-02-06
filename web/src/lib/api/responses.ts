@@ -7,7 +7,16 @@ export async function submitResponse(
   sessionId: string,
   availability: Availability
 ): Promise<void> {
-  await supabaseRequest('responses?on_conflict=poll_id,slot_id,session_id', {
+  // First, delete any existing response for this combination
+  await supabaseRequest(
+    `responses?poll_id=eq.${pollId}&slot_id=eq.${slotId}&session_id=eq.${sessionId}`,
+    {
+      method: 'DELETE',
+    }
+  )
+
+  // Then insert the new response
+  await supabaseRequest('responses', {
     method: 'POST',
     body: {
       poll_id: pollId,
@@ -16,7 +25,7 @@ export async function submitResponse(
       availability,
     },
     headers: {
-      Prefer: 'return=minimal,resolution=merge-duplicates',
+      Prefer: 'return=minimal',
     },
   })
 }

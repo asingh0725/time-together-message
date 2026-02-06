@@ -192,13 +192,15 @@ export function PollPageClient({ pollId }: PollPageClientProps) {
             <span className="text-sm font-medium">Home</span>
           </Link>
 
-          <button
-            onClick={handleShare}
-            className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-xl text-white hover:bg-card-hover transition-colors"
-          >
-            <Share2 className="w-4 h-4" />
-            <span className="text-sm font-medium">Share</span>
-          </button>
+          {!isFinalized && (
+            <button
+              onClick={handleShare}
+              className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-xl text-white hover:bg-card-hover transition-colors"
+            >
+              <Share2 className="w-4 h-4" />
+              <span className="text-sm font-medium">Share</span>
+            </button>
+          )}
         </div>
       </header>
 
