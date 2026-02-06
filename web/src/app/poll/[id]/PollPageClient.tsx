@@ -2,20 +2,19 @@
 
 import { useMemo, useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import Link from 'next/link'
 import {
   Calendar,
   Clock,
   Users,
   Share2,
-  ChevronLeft,
   AlertCircle,
   Loader2,
   Check,
   Copy,
+  CheckCircle2,
 } from 'lucide-react'
 import { usePoll, useSubmitResponse, useAddParticipant, useIsParticipant, useUserResponses } from '@/lib/hooks'
-import { cn, getSessionId, getDisplayName, setDisplayName, formatSlotDate, formatSlotTime } from '@/lib/utils'
+import { getSessionId, getDisplayName, setDisplayName } from '@/lib/utils'
 import { getSlotStats, Availability } from '@/lib/types'
 import { TimeSlotCard } from '@/components/TimeSlotCard'
 import { NameInput } from '@/components/NameInput'
@@ -80,6 +79,14 @@ export function PollPageClient({ pollId }: PollPageClientProps) {
     if (!poll?.finalizedSlotId) return null
     return poll.timeSlots.find((s) => s.id === poll.finalizedSlotId) || null
   }, [poll])
+
+  // Track response completion
+  const responseStats = useMemo(() => {
+    if (!poll) return { answered: 0, total: 0, isComplete: false }
+    const total = poll.timeSlots.length
+    const answered = Object.keys(userResponses).length
+    return { answered, total, isComplete: answered === total && total > 0 }
+  }, [poll, userResponses])
 
   // Handle name submission
   const handleNameSubmit = async (name: string) => {
@@ -165,13 +172,6 @@ export function PollPageClient({ pollId }: PollPageClientProps) {
           <p className="text-text-secondary mb-6">
             This poll may have been deleted or the link is incorrect.
           </p>
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-accent-blue text-white rounded-xl font-medium hover:bg-blue-600 transition-colors"
-          >
-            <ChevronLeft className="w-4 h-4" />
-            <span>Back to Home</span>
-          </Link>
         </div>
       </div>
     )
@@ -183,14 +183,7 @@ export function PollPageClient({ pollId }: PollPageClientProps) {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="sticky top-0 z-40 glass border-b border-white/5">
-        <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
-          <Link
-            href="/"
-            className="flex items-center gap-2 text-text-secondary hover:text-white transition-colors"
-          >
-            <ChevronLeft className="w-5 h-5" />
-            <span className="text-sm font-medium">Home</span>
-          </Link>
+        <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-end">
 
           {!isFinalized && (
             <button
@@ -278,11 +271,44 @@ export function PollPageClient({ pollId }: PollPageClientProps) {
           </motion.div>
         )}
 
+        {/* Completion Banner */}
+        <AnimatePresence>
+          {responseStats.isComplete && !isFinalized && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="mb-6 p-4 bg-accent-green/10 border border-accent-green/20 rounded-xl"
+            >
+              <div className="flex items-start gap-3">
+                <CheckCircle2 className="w-5 h-5 text-accent-green flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-white font-medium">Responses submitted!</p>
+                  <p className="text-sm text-text-secondary mt-1">
+                    You've voted on all {responseStats.total} time slots. You can update your responses anytime or close this page.
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Progress indicator */}
+        {localName && !isFinalized && !responseStats.isComplete && responseStats.answered > 0 && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="mb-4 text-sm text-text-secondary"
+          >
+            <span>{responseStats.answered} of {responseStats.total} time slots answered</span>
+          </motion.div>
+        )}
+
         {/* Time Slots */}
         {!isFinalized && (
           <div className="mb-4">
             <h2 className="text-sm font-medium text-text-secondary mb-3">
-              {needsName ? 'Available Time Slots' : 'Tap to vote on each time slot'}
+              {needsName ? 'Available Time Slots' : responseStats.isComplete ? 'Your responses (tap to update)' : 'Tap to vote on each time slot'}
             </h2>
           </div>
         )}
