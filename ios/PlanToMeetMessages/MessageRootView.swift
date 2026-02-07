@@ -91,7 +91,7 @@ final class PollFormViewModel: ObservableObject {
         let dateRange = "\(formatter.string(from: dateRangeStart)) - \(formatter.string(from: dateRangeEnd))"
         return PollMessageInfo(
             title: title.trimmingCharacters(in: .whitespacesAndNewlines),
-            subtitle: "Tap to vote on available times",
+            subtitle: "Tap to vote",
             dateRange: dateRange,
             responseCount: nil
         )
@@ -243,8 +243,8 @@ final class PollFormViewModel: ObservableObject {
 
         while current <= endDate {
             let dateKey = dateFormatter.string(from: current)
-            let startMin = 6 * 60
-            let endMin = 23 * 60
+            let startMin = 0          // Midnight (12 AM)
+            let endMin = 24 * 60      // Midnight next day
             var slotStart = startMin
 
             while slotStart + dur <= endMin {
@@ -393,12 +393,21 @@ struct PollFormView: View {
     @ObservedObject var viewModel: PollFormViewModel
     var onSendPoll: ((URL, PollMessageInfo) -> Void)?
 
+    @State private var showStartDatePicker = false
+    @State private var showEndDatePicker = false
+
     private let bgColor = Color(red: 0.035, green: 0.035, blue: 0.043)
     private let cardColor = Color(red: 0.063, green: 0.063, blue: 0.075)
     private let borderColor = Color(red: 0.15, green: 0.15, blue: 0.17)
     private let labelColor = Color(red: 0.63, green: 0.63, blue: 0.67)
     private let accentBlue = Color(red: 0.23, green: 0.51, blue: 0.96)
     private let dimText = Color(red: 0.4, green: 0.4, blue: 0.45)
+
+    private var dateFormatter: DateFormatter {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM d, yyyy"
+        return formatter
+    }
 
     var body: some View {
         ZStack {
@@ -567,53 +576,77 @@ struct PollFormView: View {
             }
 
             HStack(spacing: 10) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("From")
-                        .font(.caption)
-                        .foregroundColor(dimText)
-                    DatePicker(
-                        "",
+                // From date button
+                Button {
+                    showStartDatePicker = true
+                } label: {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("From")
+                            .font(.caption)
+                            .foregroundColor(dimText)
+                        Text(dateFormatter.string(from: viewModel.dateRangeStart))
+                            .font(.subheadline.weight(.medium))
+                            .foregroundColor(.white)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(12)
+                    .background(cardColor)
+                    .cornerRadius(12)
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(borderColor, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+                .sheet(isPresented: $showStartDatePicker) {
+                    DatePickerSheet(
+                        title: "Start Date",
                         selection: $viewModel.dateRangeStart,
-                        in: Calendar.current.startOfDay(for: Date())...,
-                        displayedComponents: .date
+                        range: Calendar.current.startOfDay(for: Date())...,
+                        onDismiss: { showStartDatePicker = false }
                     )
-                    .labelsHidden()
-                    .datePickerStyle(.compact)
-                    .colorScheme(.dark)
-                    .tint(accentBlue)
+                    .presentationDetents([.medium])
+                    .presentationDragIndicator(.visible)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(12)
-                .background(cardColor)
-                .cornerRadius(12)
-                .overlay(RoundedRectangle(cornerRadius: 12).stroke(borderColor, lineWidth: 1))
 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("To")
-                        .font(.caption)
-                        .foregroundColor(dimText)
-                    DatePicker(
-                        "",
-                        selection: $viewModel.dateRangeEnd,
-                        in: viewModel.dateRangeStart...,
-                        displayedComponents: .date
-                    )
-                    .labelsHidden()
-                    .datePickerStyle(.compact)
-                    .colorScheme(.dark)
-                    .tint(accentBlue)
+                // To date button
+                Button {
+                    showEndDatePicker = true
+                } label: {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("To")
+                            .font(.caption)
+                            .foregroundColor(dimText)
+                        Text(dateFormatter.string(from: viewModel.dateRangeEnd))
+                            .font(.subheadline.weight(.medium))
+                            .foregroundColor(.white)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(12)
+                    .background(cardColor)
+                    .cornerRadius(12)
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(borderColor, lineWidth: 1))
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(12)
-                .background(cardColor)
-                .cornerRadius(12)
-                .overlay(RoundedRectangle(cornerRadius: 12).stroke(borderColor, lineWidth: 1))
+                .buttonStyle(.plain)
+                .sheet(isPresented: $showEndDatePicker) {
+                    DatePickerSheet(
+                        title: "End Date",
+                        selection: $viewModel.dateRangeEnd,
+                        range: viewModel.dateRangeStart...,
+                        onDismiss: { showEndDatePicker = false }
+                    )
+                    .presentationDetents([.medium])
+                    .presentationDragIndicator(.visible)
+                }
             }
 
             Text("\(viewModel.dayCount) \(viewModel.dayCount == 1 ? "day" : "days") selected")
                 .font(.caption)
                 .foregroundColor(dimText)
                 .frame(maxWidth: .infinity)
+        }
+        .onChange(of: viewModel.dateRangeStart) { _ in
+            viewModel.onDateRangeChanged()
+        }
+        .onChange(of: viewModel.dateRangeEnd) { _ in
+            viewModel.onDateRangeChanged()
         }
     }
 
@@ -858,6 +891,49 @@ enum MessageURLValidator {
         let pollId = path.replacingOccurrences(of: "/poll/", with: "")
         let trimmed = pollId.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : trimmed
+    }
+}
+
+// MARK: - Date Picker Sheet
+
+struct DatePickerSheet: View {
+    let title: String
+    @Binding var selection: Date
+    let range: PartialRangeFrom<Date>
+    let onDismiss: () -> Void
+
+    private let bgColor = Color(red: 0.035, green: 0.035, blue: 0.043)
+    private let accentBlue = Color(red: 0.23, green: 0.51, blue: 0.96)
+
+    var body: some View {
+        NavigationView {
+            VStack {
+                DatePicker(
+                    "",
+                    selection: $selection,
+                    in: range,
+                    displayedComponents: .date
+                )
+                .datePickerStyle(.graphical)
+                .tint(accentBlue)
+                .colorScheme(.dark)
+                .padding()
+
+                Spacer()
+            }
+            .background(bgColor.ignoresSafeArea())
+            .navigationTitle(title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") {
+                        onDismiss()
+                    }
+                    .foregroundColor(accentBlue)
+                }
+            }
+        }
+        .preferredColorScheme(.dark)
     }
 }
 

@@ -70,8 +70,8 @@ struct AvailabilityGridView: View {
 
     private var timeSlots: [TimeSlot] {
         var slots: [TimeSlot] = []
-        let startMin = 6 * 60    // 6 AM
-        let endMin = 23 * 60     // 11 PM
+        let startMin = 0         // Midnight (12 AM)
+        let endMin = 24 * 60     // Midnight next day
         var current = startMin
         while current + durationMinutes <= endMin {
             slots.append(TimeSlot(startMinutes: current, durationMinutes: durationMinutes))

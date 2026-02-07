@@ -1,0 +1,24 @@
+{
+  "appclips": {
+    "apps": ["3QY3LY2U66.com.aviraj.plantomeet.Clip"]
+  },
+  "applinks": {
+    "details": [
+      {
+        "appIDs": [
+          "3QY3LY2U66.com.aviraj.plantomeet",
+          "3QY3LY2U66.com.aviraj.plantomeet.Clip"
+        ],
+        "components": [
+          {
+            "/": "/poll/*",
+            "comment": "Poll pages trigger App Clip or open main app"
+          }
+        ]
+      }
+    ]
+  },
+  "webcredentials": {
+    "apps": ["3QY3LY2U66.com.aviraj.plantomeet"]
+  }
+}
