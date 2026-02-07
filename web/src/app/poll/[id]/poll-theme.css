@@ -1,0 +1,68 @@
+/* Dark theme override for poll pages to match iOS app */
+.poll-dark-theme {
+  --background: #09090b;
+  --background-secondary: #18181b;
+  --foreground: #fafafa;
+
+  background-color: #09090b;
+  color: #fafafa;
+}
+
+/* Override Tailwind classes for dark theme */
+.poll-dark-theme .bg-background {
+  background-color: #09090b;
+}
+
+.poll-dark-theme .bg-background-secondary {
+  background-color: #18181b;
+}
+
+.poll-dark-theme .bg-surface {
+  background-color: #18181b;
+}
+
+.poll-dark-theme .bg-card {
+  background-color: #18181b;
+}
+
+.poll-dark-theme .bg-card-hover {
+  background-color: #27272a;
+}
+
+.poll-dark-theme .text-text-primary {
+  color: #fafafa;
+}
+
+.poll-dark-theme .text-text-secondary {
+  color: #a1a1aa;
+}
+
+.poll-dark-theme .text-text-tertiary {
+  color: #71717a;
+}
+
+.poll-dark-theme .border-border {
+  border-color: #27272a;
+}
+
+.poll-dark-theme .border-border-light {
+  border-color: #3f3f46;
+}
+
+/* Focus styles */
+.poll-dark-theme :focus-visible {
+  outline-color: #3B82F6;
+}
+
+/* Scrollbar */
+.poll-dark-theme::-webkit-scrollbar-track {
+  background: #18181b;
+}
+
+.poll-dark-theme::-webkit-scrollbar-thumb {
+  background: #3f3f46;
+}
+
+.poll-dark-theme::-webkit-scrollbar-thumb:hover {
+  background: #52525b;
+}
