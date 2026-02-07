@@ -7,15 +7,24 @@ A mobile-first scheduling app that helps groups find a common time to meet. Crea
 ```
 TimeTogether/
 ├── ios/                    # Native iOS app (Swift/SwiftUI)
-│   ├── PlanToMeet/        # Main iOS app
+│   ├── PlanToMeet/         # Main iOS app
 │   ├── PlanToMeetMessages/ # iMessage extension
-│   └── Shared/            # Shared code between targets
+│   ├── PlanToMeetClip/     # App Clip for instant voting
+│   └── Shared/             # Shared code between targets
 ├── web/                    # Next.js web app
-│   ├── src/app/           # Pages and routes
-│   ├── src/components/    # React components
-│   └── src/lib/           # Utilities and API
-└── supabase/              # Database schema
+│   ├── src/app/            # Pages and routes
+│   ├── src/components/     # React components
+│   └── src/lib/            # Utilities and API
+└── supabase/               # Database schema
 ```
+
+## iOS Targets
+
+| Target | Type | Bundle ID | Description |
+|--------|------|-----------|-------------|
+| PlanToMeet | App | `com.aviraj.plantomeet` | Main app for viewing polls and settings |
+| PlanToMeetMessages | iMessage Extension | `com.aviraj.plantomeet.PlanToMeetMessages` | Create and vote on polls in iMessage |
+| PlanToMeetClip | App Clip | `com.aviraj.plantomeet.Clip` | Instant voting when tapping poll links |
 
 ## Features
 
@@ -27,6 +36,7 @@ TimeTogether/
 
 ### Key Features
 - **Native iMessage Integration** - Create and share polls without leaving Messages
+- **App Clip** - Instant native voting experience without downloading the app
 - **No accounts required** - Anyone can respond via shared link
 - **Visual Grid Picker** - Tap cells on a calendar grid to mark availability
 - **Calendar Integration** - See busy times while selecting availability
@@ -49,6 +59,7 @@ TimeTogether/
 ### Targets
 - **PlanToMeet** - Main iOS app for viewing polls and settings
 - **PlanToMeetMessages** - iMessage extension for creating/voting on polls
+- **PlanToMeetClip** - App Clip for instant voting via poll links
 
 ## Web App
 
@@ -82,31 +93,53 @@ npm run dev
 ### Schema
 See `supabase/` directory for migrations and schema.
 
-## Universal Links
+## Universal Links & App Clip
 
 Polls are accessible at `https://plantomeet.app/poll/{pollId}`
 
-- **iOS installed** → Opens native app
-- **iOS not installed** → Opens web app
+- **iOS with app installed** → Opens main app
+- **iOS without app** → App Clip slides up for instant voting
 - **Other platforms** → Opens web app
+
+### App Clip
+
+The App Clip provides a native voting experience for iOS users who don't have the full app installed. When a user taps a poll link, the App Clip slides up from the bottom of the screen, allowing them to:
+
+- View poll details and time slots
+- Vote on times (Yes/Maybe/No)
+- Add finalized events to calendar
+- Download the full app
+
+**Requirements:**
+- Apple Developer Program membership (for Associated Domains capability)
+- App Clip configured in App Store Connect
 
 ### Apple App Site Association
 
-Host at `https://plantomeet.app/.well-known/apple-app-site-association`:
+The AASA file is located at `web/public/.well-known/apple-app-site-association`:
 
 ```json
 {
+  "appclips": {
+    "apps": ["3QY3LY2U66.com.aviraj.plantomeet.Clip"]
+  },
   "applinks": {
-    "apps": [],
     "details": [
       {
-        "appID": "TEAM_ID.com.aviraj.plantomeet",
-        "paths": ["/poll/*"]
+        "appIDs": [
+          "3QY3LY2U66.com.aviraj.plantomeet",
+          "3QY3LY2U66.com.aviraj.plantomeet.Clip"
+        ],
+        "components": [
+          { "/": "/poll/*", "comment": "Poll pages" }
+        ]
       }
     ]
   }
 }
 ```
+
+This file must be served at `https://plantomeet.app/.well-known/apple-app-site-association` with `Content-Type: application/json`.
 
 ## Design System
 
