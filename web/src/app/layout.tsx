@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next'
-import { Outfit, Plus_Jakarta_Sans } from 'next/font/google'
+import { Outfit, Plus_Jakarta_Sans, Playfair_Display } from 'next/font/google'
 import './globals.css'
 import { Providers } from '@/components/Providers'
 
@@ -13,6 +13,13 @@ const jakarta = Plus_Jakarta_Sans({
   subsets: ['latin'],
   variable: '--font-body',
   display: 'swap',
+})
+
+const playfair = Playfair_Display({
+  subsets: ['latin'],
+  variable: '--font-serif',
+  display: 'swap',
+  style: ['normal', 'italic'],
 })
 
 export const metadata: Metadata = {
@@ -74,7 +81,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className={`${outfit.variable} ${jakarta.variable}`}>
+    <html lang="en" className={`${outfit.variable} ${jakarta.variable} ${playfair.variable}`}>
       <body className="min-h-screen bg-background text-text-primary font-body antialiased">
         <Providers>
           {children}
