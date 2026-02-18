@@ -1,8 +1,22 @@
 import SwiftUI
 
+// MARK: - Sentry Setup
+// To enable crash reporting:
+// 1. In Xcode: File → Add Package Dependencies
+//    URL: https://github.com/getsentry/sentry-cocoa
+//    Version: 8.x.x
+// 2. Add SENTRY_DSN to ios/PlanToMeet/Secrets.xcconfig
+// 3. Uncomment the Sentry import and SentrySDK.start block below
+//
+// import Sentry
+
 @main
 struct PlanToMeetApp: App {
     @StateObject private var appState = AppState.shared
+
+    init() {
+        configureSentry()
+    }
 
     var body: some Scene {
         WindowGroup {
@@ -10,5 +24,20 @@ struct PlanToMeetApp: App {
                 .environmentObject(appState)
                 .preferredColorScheme(.dark)
         }
+    }
+
+    private func configureSentry() {
+        // Uncomment after adding Sentry Swift Package:
+        //
+        // guard let dsn = Bundle.main.object(forInfoDictionaryKey: "SENTRY_DSN") as? String,
+        //       !dsn.isEmpty else { return }
+        //
+        // SentrySDK.start { options in
+        //     options.dsn = dsn
+        //     options.environment = Bundle.main.object(forInfoDictionaryKey: "SENTRY_ENVIRONMENT") as? String ?? "production"
+        //     options.tracesSampleRate = 0.1
+        //     options.enableCrashHandler = true
+        //     options.enableSwiftAsyncStacktraces = true
+        // }
     }
 }
