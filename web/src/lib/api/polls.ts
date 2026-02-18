@@ -106,3 +106,44 @@ export async function finalizePoll(pollId: string, slotId: string): Promise<void
     },
   })
 }
+
+export interface CreatePollInput {
+  title: string
+  durationMinutes: number
+  creatorSessionId: string
+  timeSlots: Array<{ day: string; startTime: string; endTime: string }>
+}
+
+export async function createPoll(input: CreatePollInput): Promise<string> {
+  const pollId = crypto.randomUUID()
+  const now = new Date().toISOString()
+
+  await supabaseRequest('polls', {
+    method: 'POST',
+    body: {
+      id: pollId,
+      title: input.title,
+      duration_minutes: input.durationMinutes,
+      status: 'open',
+      created_at: now,
+      creator_session_id: input.creatorSessionId,
+    },
+    headers: { Prefer: 'return=minimal' },
+  })
+
+  const slotBodies = input.timeSlots.map((slot) => ({
+    id: crypto.randomUUID(),
+    poll_id: pollId,
+    day: slot.day,
+    start_time: slot.startTime,
+    end_time: slot.endTime,
+  }))
+
+  await supabaseRequest('time_slots', {
+    method: 'POST',
+    body: slotBodies,
+    headers: { Prefer: 'return=minimal' },
+  })
+
+  return pollId
+}
