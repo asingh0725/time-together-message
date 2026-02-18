@@ -1,3 +1,5 @@
+import { createClient, RealtimeChannel } from '@supabase/supabase-js'
+
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
@@ -7,7 +9,17 @@ if (!supabaseUrl || !supabaseAnonKey) {
   )
 }
 
+// REST API base URL (used by the existing custom HTTP client)
 const baseUrl = `${supabaseUrl}/rest/v1`
+
+// Supabase JS client — used only for Realtime subscriptions.
+// All CRUD operations still go through supabaseRequest() to avoid extra bundle weight.
+export const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: { persistSession: false },
+  realtime: { params: { eventsPerSecond: 10 } },
+})
+
+// MARK: - Custom REST Client
 
 export interface SupabaseRequestOptions {
   method?: 'GET' | 'POST' | 'PATCH' | 'DELETE'
@@ -85,11 +97,43 @@ export async function supabaseRequest<T>(
   }
 }
 
-// Realtime subscription helper using Server-Sent Events
-// Note: For true realtime, you'd use Supabase Realtime which requires the supabase-js client
-// For simplicity, we'll use polling with React Query's refetch capabilities
-export function createRealtimeChannel() {
-  // This is a placeholder - for true realtime, integrate @supabase/supabase-js
-  // For now, we rely on React Query's refetchInterval for pseudo-realtime
-  console.log('Realtime: Using polling-based updates')
+// MARK: - Realtime
+
+/**
+ * Creates a Supabase Realtime subscription that fires `onUpdate` whenever
+ * a row in `responses` or `participants` changes for the given poll.
+ *
+ * Returns a cleanup function — call it when the component unmounts.
+ */
+export function createPollRealtimeSubscription(
+  pollId: string,
+  onUpdate: () => void
+): () => void {
+  const channel: RealtimeChannel = supabaseClient
+    .channel(`poll-${pollId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'responses',
+        filter: `poll_id=eq.${pollId}`,
+      },
+      () => onUpdate()
+    )
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'participants',
+        filter: `poll_id=eq.${pollId}`,
+      },
+      () => onUpdate()
+    )
+    .subscribe()
+
+  return () => {
+    supabaseClient.removeChannel(channel)
+  }
 }

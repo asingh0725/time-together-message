@@ -1,9 +1,11 @@
 'use client'
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useEffect } from 'react'
 import { fetchPoll } from './api/polls'
 import { submitResponse } from './api/responses'
 import { addParticipant } from './api/participants'
+import { createPollRealtimeSubscription } from './supabase'
 import { Availability, Poll } from './types'
 import { getSessionId } from './utils'
 
@@ -13,15 +15,30 @@ export const pollKeys = {
   detail: (id: string) => ['polls', id] as const,
 }
 
-// Fetch poll with real-time-ish updates (polling)
-export function usePoll(pollId: string, options?: { refetchInterval?: number }) {
+// Fetch poll with Supabase Realtime updates.
+// Falls back to a 60s polling interval in case the WebSocket connection drops.
+export function usePoll(pollId: string) {
+  const queryClient = useQueryClient()
+
+  // Subscribe to Realtime on mount, unsubscribe on unmount
+  useEffect(() => {
+    if (!pollId) return
+
+    const cleanup = createPollRealtimeSubscription(pollId, () => {
+      queryClient.invalidateQueries({ queryKey: pollKeys.detail(pollId) })
+    })
+
+    return cleanup
+  }, [pollId, queryClient])
+
   return useQuery({
     queryKey: pollKeys.detail(pollId),
     queryFn: () => fetchPoll(pollId),
     enabled: !!pollId,
-    refetchInterval: options?.refetchInterval ?? 5000, // Poll every 5 seconds for "realtime" updates
+    // 60s fallback polling — covers the case where Realtime WS drops
+    refetchInterval: 60_000,
     refetchIntervalInBackground: false,
-    staleTime: 1000, // Consider data stale after 1 second
+    staleTime: 2000,
   })
 }
 
