@@ -10,6 +10,7 @@ final class AppState: ObservableObject {
     @Published var sessionId: String
     @Published var displayName: String
     @Published var calendarEnabled: Bool
+    @Published var hasCompletedOnboarding: Bool
 
     private init() {
         // Use App Group shared UserDefaults
@@ -34,6 +35,9 @@ final class AppState: ObservableObject {
 
         // Load calendar preference
         self.calendarEnabled = defaults.bool(forKey: AppConstants.Keys.calendarEnabled)
+
+        // Load onboarding completion state
+        self.hasCompletedOnboarding = defaults.bool(forKey: AppConstants.Keys.hasCompletedOnboarding)
     }
 
     func updateDisplayName(_ name: String) {
@@ -44,6 +48,11 @@ final class AppState: ObservableObject {
     func updateCalendarEnabled(_ enabled: Bool) {
         calendarEnabled = enabled
         defaults.set(enabled, forKey: AppConstants.Keys.calendarEnabled)
+    }
+
+    func completeOnboarding() {
+        hasCompletedOnboarding = true
+        defaults.set(true, forKey: AppConstants.Keys.hasCompletedOnboarding)
     }
 
     /// Returns the display name or a default fallback

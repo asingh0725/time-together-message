@@ -23,6 +23,13 @@ struct PlanToMeetApp: App {
             MainTabView()
                 .environmentObject(appState)
                 .preferredColorScheme(.dark)
+                .fullScreenCover(isPresented: .init(
+                    get: { !appState.hasCompletedOnboarding },
+                    set: { _ in }
+                )) {
+                    OnboardingView()
+                        .environmentObject(appState)
+                }
         }
     }
 

@@ -9,5 +9,6 @@ enum AppConstants {
         static let sessionId = "PlanToMeet_SessionId"
         static let displayName = "PlanToMeet_DisplayName"
         static let calendarEnabled = "PlanToMeet_CalendarEnabled"
+        static let hasCompletedOnboarding = "PlanToMeet_HasCompletedOnboarding"
     }
 }
