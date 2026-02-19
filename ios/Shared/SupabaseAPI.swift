@@ -166,6 +166,15 @@ enum SupabaseAPI {
         let displayName: String?
     }
 
+    struct ReactionRow: Decodable, Identifiable {
+        let id: String
+        let pollId: String
+        let sessionId: String
+        let emoji: String
+        let comment: String?
+        let createdAt: String
+    }
+
     // MARK: - Write: Poll
 
     static func createPoll(
@@ -358,6 +367,37 @@ enum SupabaseAPI {
         ])
         let participants: [ParticipantRow] = try await executeGet(request)
         return participants.count
+    }
+
+    // MARK: - Read: Reactions
+
+    static func fetchReactions(pollId: String) async throws -> [ReactionRow] {
+        let request = try makeGetRequest(path: "/reactions", queryItems: [
+            URLQueryItem(name: "select", value: "*"),
+            URLQueryItem(name: "poll_id", value: "eq.\(pollId)"),
+            URLQueryItem(name: "order", value: "created_at.asc")
+        ])
+        return try await executeGet(request)
+    }
+
+    // MARK: - Write: Reactions
+
+    static func submitReaction(pollId: String, sessionId: String, emoji: String, comment: String?) async throws {
+        var body: [String: Any] = [
+            "poll_id": pollId,
+            "session_id": sessionId,
+            "emoji": emoji
+        ]
+        if let comment, !comment.isEmpty {
+            body["comment"] = comment
+        }
+        // Upsert on (poll_id, session_id) — one reaction per participant per poll
+        let request = try makePostRequest(
+            path: "/reactions?on_conflict=poll_id,session_id",
+            body: body,
+            upsert: true
+        )
+        try await executePost(request)
     }
 
     // MARK: - Write: Push Token

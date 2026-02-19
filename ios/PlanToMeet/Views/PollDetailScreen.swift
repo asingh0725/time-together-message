@@ -21,6 +21,8 @@ struct PollDetailScreen: View {
     @EnvironmentObject private var appState: AppState
     @StateObject private var viewModel: PollDetailScreenViewModel
     @State private var showShareSheet = false
+    @State private var reactionComment = ""
+    @State private var selectedEmoji: String? = nil
 
     init(pollId: String, isReadOnly: Bool = false) {
         self.pollId = pollId
@@ -220,6 +222,13 @@ struct PollDetailScreen: View {
                 .padding(.bottom, 4)
             }
 
+            // Reactions section (only when finalized)
+            if viewModel.poll?.status == "finalized" {
+                reactionsSection
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 8)
+            }
+
             // Submit button (only if not read-only)
             if !isReadOnly {
                 Button(action: {
@@ -251,6 +260,114 @@ struct PollDetailScreen: View {
                 .padding(.vertical, 12)
                 .background(Theme.background)
             }
+        }
+    }
+
+    // MARK: - Reactions
+
+    private let reactionEmojis = ["🎉", "👍", "🙌", "🥳", "😍", "🔥"]
+
+    private var reactionsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Reactions")
+                .font(.subheadline.weight(.semibold))
+                .foregroundColor(Theme.textPrimary)
+
+            // Emoji picker row
+            HStack(spacing: 8) {
+                ForEach(reactionEmojis, id: \.self) { emoji in
+                    let isSelected = selectedEmoji == emoji || viewModel.myReaction?.emoji == emoji
+                    Button {
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        selectedEmoji = emoji
+                    } label: {
+                        Text(emoji)
+                            .font(.title3)
+                            .padding(8)
+                            .background(isSelected ? Theme.accentBlue.opacity(0.2) : Theme.cardBackground)
+                            .cornerRadius(10)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .stroke(isSelected ? Theme.accentBlue.opacity(0.5) : Theme.border, lineWidth: 1)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            // Optional comment field
+            if selectedEmoji != nil {
+                TextField("Add a comment (optional)", text: $reactionComment)
+                    .font(.subheadline)
+                    .foregroundColor(Theme.textPrimary)
+                    .padding(12)
+                    .background(Theme.cardBackground)
+                    .cornerRadius(10)
+                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(Theme.border, lineWidth: 1))
+
+                Button {
+                    guard let emoji = selectedEmoji else { return }
+                    viewModel.submitReaction(emoji: emoji, comment: reactionComment)
+                    selectedEmoji = nil
+                    reactionComment = ""
+                } label: {
+                    HStack(spacing: 6) {
+                        if viewModel.isSubmittingReaction {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                .scaleEffect(0.8)
+                        }
+                        Text(viewModel.myReaction == nil ? "Post Reaction" : "Update Reaction")
+                            .font(.subheadline.weight(.semibold))
+                    }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(Theme.accentBlue)
+                    .cornerRadius(10)
+                }
+                .disabled(viewModel.isSubmittingReaction)
+            }
+
+            // Existing reactions list
+            if !viewModel.reactions.isEmpty {
+                Divider().background(Theme.border)
+
+                VStack(spacing: 8) {
+                    ForEach(viewModel.reactions) { reaction in
+                        reactionRow(reaction)
+                    }
+                }
+            }
+        }
+        .padding(16)
+        .background(Theme.cardBackground)
+        .cornerRadius(12)
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.border, lineWidth: 1))
+        .onAppear {
+            if let my = viewModel.myReaction {
+                selectedEmoji = my.emoji
+                reactionComment = my.comment ?? ""
+            }
+        }
+    }
+
+    private func reactionRow(_ reaction: SupabaseAPI.ReactionRow) -> some View {
+        let name = viewModel.participants.first(where: { $0.sessionId == reaction.sessionId })?.displayName ?? "Anonymous"
+        return HStack(spacing: 10) {
+            Text(reaction.emoji)
+                .font(.title3)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(name)
+                    .font(.caption.weight(.medium))
+                    .foregroundColor(Theme.textSecondary)
+                if let comment = reaction.comment, !comment.isEmpty {
+                    Text(comment)
+                        .font(.caption)
+                        .foregroundColor(Theme.textPrimary)
+                }
+            }
+            Spacer()
         }
     }
 
@@ -492,6 +609,8 @@ final class PollDetailScreenViewModel: ObservableObject {
     @Published var myResponses: [String: String] = [:]
     @Published var isSubmitting = false
     @Published var hasSubmitted = false
+    @Published var reactions: [SupabaseAPI.ReactionRow] = []
+    @Published var isSubmittingReaction = false
 
     let pollId: String
     var sessionId: String = ""
@@ -547,14 +666,16 @@ final class PollDetailScreenViewModel: ObservableObject {
                 async let slotsFetch = SupabaseAPI.fetchTimeSlots(pollId: pollId)
                 async let responsesFetch = SupabaseAPI.fetchResponses(pollId: pollId)
                 async let participantsFetch = SupabaseAPI.fetchParticipants(pollId: pollId)
+                async let reactionsFetch = SupabaseAPI.fetchReactions(pollId: pollId)
 
-                let (fetchedPoll, fetchedSlots, fetchedResponses, fetchedParticipants) =
-                    try await (pollFetch, slotsFetch, responsesFetch, participantsFetch)
+                let (fetchedPoll, fetchedSlots, fetchedResponses, fetchedParticipants, fetchedReactions) =
+                    try await (pollFetch, slotsFetch, responsesFetch, participantsFetch, reactionsFetch)
 
                 poll = fetchedPoll
                 timeSlots = fetchedSlots
                 responses = fetchedResponses
                 participants = fetchedParticipants
+                reactions = fetchedReactions
 
                 // Load existing responses for this session
                 let myExisting = fetchedResponses.filter { $0.sessionId == sessionId }
@@ -627,12 +748,14 @@ final class PollDetailScreenViewModel: ObservableObject {
             do {
                 async let responsesFetch = SupabaseAPI.fetchResponses(pollId: pollId)
                 async let participantsFetch = SupabaseAPI.fetchParticipants(pollId: pollId)
+                async let reactionsFetch = SupabaseAPI.fetchReactions(pollId: pollId)
 
-                let (fetchedResponses, fetchedParticipants) =
-                    try await (responsesFetch, participantsFetch)
+                let (fetchedResponses, fetchedParticipants, fetchedReactions) =
+                    try await (responsesFetch, participantsFetch, reactionsFetch)
 
                 responses = fetchedResponses
                 participants = fetchedParticipants
+                reactions = fetchedReactions
             } catch {
                 // Silently fail
             }
@@ -641,6 +764,27 @@ final class PollDetailScreenViewModel: ObservableObject {
 
     func responseCountForSlot(_ slotId: String, type: String = "available") -> Int {
         responses.filter { $0.slotId == slotId && $0.availability == type }.count
+    }
+
+    var myReaction: SupabaseAPI.ReactionRow? {
+        reactions.first { $0.sessionId == sessionId }
+    }
+
+    func submitReaction(emoji: String, comment: String) {
+        guard !isSubmittingReaction else { return }
+        isSubmittingReaction = true
+        let sid = sessionId
+        let pid = pollId
+        Task {
+            do {
+                try await SupabaseAPI.submitReaction(pollId: pid, sessionId: sid, emoji: emoji, comment: comment.isEmpty ? nil : comment)
+                reactions = try await SupabaseAPI.fetchReactions(pollId: pid)
+                UINotificationFeedbackGenerator().notificationOccurred(.success)
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+            isSubmittingReaction = false
+        }
     }
 }
 
