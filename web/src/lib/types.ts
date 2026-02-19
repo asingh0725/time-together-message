@@ -110,6 +110,36 @@ export function transformParticipant(row: ParticipantRow): Participant {
   }
 }
 
+// Reaction types
+export interface ReactionRow {
+  id: string
+  poll_id: string
+  session_id: string
+  emoji: string
+  comment: string | null
+  created_at: string
+}
+
+export interface Reaction {
+  id: string
+  pollId: string
+  sessionId: string
+  emoji: string
+  comment: string | null
+  createdAt: string
+}
+
+export function transformReaction(row: ReactionRow): Reaction {
+  return {
+    id: row.id,
+    pollId: row.poll_id,
+    sessionId: row.session_id,
+    emoji: row.emoji,
+    comment: row.comment,
+    createdAt: row.created_at,
+  }
+}
+
 // Slot statistics
 export interface SlotStats {
   available: number

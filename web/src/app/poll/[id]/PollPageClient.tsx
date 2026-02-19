@@ -19,6 +19,7 @@ import { getSlotStats, Availability } from '@/lib/types'
 import { TimeSlotCard } from '@/components/TimeSlotCard'
 import { NameInput } from '@/components/NameInput'
 import { AddToCalendar } from '@/components/AddToCalendar'
+import { PollReactions } from '@/components/PollReactions'
 
 interface PollPageClientProps {
   pollId: string
@@ -246,9 +247,10 @@ export function PollPageClient({ pollId }: PollPageClientProps) {
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mb-6"
+            className="mb-6 space-y-4"
           >
             <AddToCalendar poll={poll} slot={finalizedSlot} />
+            <PollReactions pollId={poll.id} participants={poll.participants} />
           </motion.div>
         )}
 
